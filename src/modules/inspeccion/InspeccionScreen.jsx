@@ -102,7 +102,7 @@ export function InspectionDetail(){
   )
 }
 
-function InspeccionList(){
+export function InspeccionList(){
   const navigate=useNavigate()
   const [inspections,setInspections]=useState([])
   const [loading,setLoading]=useState(true)
@@ -150,7 +150,6 @@ function InspeccionList(){
         })
       )}
     </div>
-    
     export default function InspeccionScreen(){
   const navigate=useNavigate()
   const [params]=useSearchParams()
@@ -175,7 +174,6 @@ function InspeccionList(){
   useEffect(()=>{
     supabase.from('plants').select('id,name,membrane').order('name').then(({data})=>setPlants(data||[]))
   },[])
-
 
   const canNext=()=>{
     if(step===1)return !!(plantId&&type&&membrane)
@@ -339,5 +337,4 @@ function InspeccionList(){
   )
 }
   )
-  } 
 }
