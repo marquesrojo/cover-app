@@ -176,8 +176,6 @@ function InspeccionList(){
     supabase.from('plants').select('id,name,membrane').order('name').then(({data})=>setPlants(data||[]))
   },[])
 
-  const isNueva=window.location.pathname.endsWith('/nueva')||!!params.get('plantId')
-  if(!isNueva)return<InspeccionList/>
 
   const canNext=()=>{
     if(step===1)return !!(plantId&&type&&membrane)
