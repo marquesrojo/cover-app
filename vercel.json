@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/inspeccion/lista", "destination": "/" },
     { "source": "/inspeccion/nueva", "destination": "/" },
     { "source": "/inspeccion/:id",   "destination": "/" },
     { "source": "/inspeccion",       "destination": "/" },
