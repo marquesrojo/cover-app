@@ -28,14 +28,14 @@ export default function App() {
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <AuthScreen />} />
       <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard"           element={<DashboardScreen />} />
-        <Route path="gemelo"              element={<GemelScreen />} />
-        <Route path="gemelo/:plantId"     element={<GemelScreen />} />
-       <Route path="inspeccion"          element={<InspeccionList />} />
-       <Route path="inspeccion/nueva"    element={<InspeccionScreen />} />
-       <Route path="inspeccion/:id"      element={<InspectionDetail />} />
-        <Route path="tickets"             element={<TicketsScreen />} />
-        <Route path="*"                   element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard"        element={<DashboardScreen />} />
+        <Route path="gemelo"           element={<GemelScreen />} />
+        <Route path="gemelo/:plantId"  element={<GemelScreen />} />
+        <Route path="inspeccion"       element={<InspeccionList />} />
+        <Route path="inspeccion/nueva" element={<InspeccionScreen />} />
+        <Route path="inspeccion/:id"   element={<InspectionDetail />} />
+        <Route path="tickets"          element={<TicketsScreen />} />
+        <Route path="*"                element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
   )
