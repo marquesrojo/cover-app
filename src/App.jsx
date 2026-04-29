@@ -7,6 +7,7 @@ import GemelScreen from '@/modules/gemelo/GemelScreen'
 import InspeccionScreen, { InspectionDetail } from '@/modules/inspeccion/InspeccionScreen'
 import TicketsScreen from '@/modules/tickets/TicketsScreen'
 import { Spinner } from '@/components/ui'
+import InspeccionScreen, { InspectionDetail, InspeccionList } from '@/modules/inspeccion/InspeccionScreen'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -31,7 +32,7 @@ export default function App() {
         <Route path="dashboard"           element={<DashboardScreen />} />
         <Route path="gemelo"              element={<GemelScreen />} />
         <Route path="gemelo/:plantId"     element={<GemelScreen />} />
-        <Route path="inspeccion"          element={<InspeccionScreen />} />
+       <Route path="inspeccion"          element={<InspeccionList />} />
        <Route path="inspeccion/nueva"    element={<InspeccionScreen />} />
        <Route path="inspeccion/:id"      element={<InspectionDetail />} />
         <Route path="tickets"             element={<TicketsScreen />} />
