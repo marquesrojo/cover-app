@@ -37,3 +37,105 @@ export const SeverityChips = ({value,onChange})=>{
     <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
       {levels.map(({l,c})=>(
         <button key={l} onClick={()=>onChange(l)} style={{background:value===l?c+'33':C.surface2,border:`1.5px solid ${value===l?c:C.border}`,borderRadius:6,padding:'8px 12px',color:value===l?c:C.muted,fontSize:12,minHeight:44,transition:'all 0.15s'}}>{l}</button>
+      ))}
+    </div>
+  )
+}
+
+export const Btn = ({children,onClick,color,disabled,full,outline,small})=>(
+  <button onClick={onClick} disabled={disabled} style={{
+    background:outline?'transparent':(disabled?C.border:color||C.amber),
+    color:outline?(color||C.amber):(disabled?C.muted:C.bg),
+    border:outline?`1.5px solid ${color||C.amber}`:'none',
+    borderRadius:10,padding:small?'8px 14px':'14px 20px',
+    fontFamily:'IBM Plex Mono',fontSize:small?11:12,fontWeight:700,letterSpacing:'0.08em',
+    width:full?'100%':'auto',transition:'all 0.2s',minHeight:small?36:44,
+    opacity:disabled?0.5:1,cursor:disabled?'not-allowed':'pointer'
+  }}>{children}</button>
+)
+
+export const Input = ({label,value,onChange,placeholder,type='text',required})=>(
+  <div style={{marginBottom:14}}>
+    {label&&<div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>{label}{required&&<span style={{color:C.red}}> *</span>}</div>}
+    <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+      style={{width:'100%',background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'12px 14px',color:C.text,fontSize:13,outline:'none',transition:'border-color 0.2s'}}
+      onFocus={e=>e.target.style.borderColor=C.amber}
+      onBlur={e=>e.target.style.borderColor=C.border}/>
+  </div>
+)
+
+export const TextArea = ({label,value,onChange,placeholder,rows=4})=>(
+  <div style={{marginBottom:14}}>
+    {label&&<div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>{label}</div>}
+    <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+      style={{width:'100%',background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'12px 14px',color:C.text,fontSize:13,outline:'none',resize:'vertical',transition:'border-color 0.2s'}}
+      onFocus={e=>e.target.style.borderColor=C.amber}
+      onBlur={e=>e.target.style.borderColor=C.border}/>
+  </div>
+)
+
+export const Select = ({label,value,onChange,options,required})=>(
+  <div style={{marginBottom:14}}>
+    {label&&<div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>{label}{required&&<span style={{color:C.red}}> *</span>}</div>}
+    <select value={value} onChange={e=>onChange(e.target.value)}
+      style={{width:'100%',background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'12px 14px',color:value?C.text:C.muted,fontSize:13,outline:'none',appearance:'none'}}>
+      <option value="">Seleccioná...</option>
+      {options.map(o=><option key={o.value||o} value={o.value||o}>{o.label||o}</option>)}
+    </select>
+  </div>
+)
+
+export const Spinner = ()=>(
+  <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:40}}>
+    <div style={{width:32,height:32,border:`3px solid ${C.border}`,borderTop:`3px solid ${C.amber}`,borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+  </div>
+)
+
+export const AlertBanner = ({color,icon,children})=>(
+  <div style={{background:color+'11',border:`1px solid ${color}33`,borderRadius:6,padding:'8px 12px',display:'flex',gap:8,alignItems:'flex-start',marginBottom:14}}>
+    {icon&&<span style={{color,fontSize:14,flexShrink:0}}>{icon}</span>}
+    <span style={{fontSize:11,color,lineHeight:1.5}}>{children}</span>
+  </div>
+)
+
+export const PhotoUpload = ({label,value,onChange})=>{
+  const handleFile=async(e)=>{
+    const file=e.target.files[0]
+    if(!file)return
+    const blobUrl=URL.createObjectURL(file)
+    let lat=null,lng=null
+    try{
+      const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:5000}))
+      lat=pos.coords.latitude;lng=pos.coords.longitude
+    }catch{}
+    onChange({file,blobUrl,lat,lng,timestamp:new Date().toISOString()})
+  }
+  return(
+    <div style={{marginBottom:14}}>
+      {label&&<div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>{label}</div>}
+      <label style={{display:'flex',alignItems:'center',gap:12,background:C.surface2,border:`1.5px dashed ${value?C.green:C.border}`,borderRadius:8,padding:14,cursor:'pointer',minHeight:64,transition:'all 0.15s'}}>
+        <input type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:'none'}}/>
+        {value?(
+          <>
+            <img src={value.blobUrl} alt="" style={{width:56,height:56,objectFit:'cover',borderRadius:6}}/>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:C.green}}>✓ Foto capturada</div>
+              <div className="mono" style={{fontSize:9,color:C.muted,marginTop:2}}>
+                {value.timestamp?.slice(0,16).replace('T',' ')}
+                {value.lat?' · GPS ✓':' · Sin GPS'}
+              </div>
+            </div>
+          </>
+        ):(
+          <>
+            <span style={{fontSize:24}}>📷</span>
+            <div>
+              <div style={{fontSize:13,fontWeight:600}}>Tomar foto</div>
+              <div className="mono" style={{fontSize:9,color:C.muted,marginTop:2}}>Toca para abrir cámara</div>
+            </div>
+          </>
+        )}
+      </label>
+    </div>
+  )
+}
