@@ -32,7 +32,8 @@ export default function App() {
         <Route path="gemelo"              element={<GemelScreen />} />
         <Route path="gemelo/:plantId"     element={<GemelScreen />} />
         <Route path="inspeccion"          element={<InspeccionScreen />} />
-        <Route path="inspeccion/:id"      element={<InspectionDetail />} />
+       <Route path="inspeccion/nueva"    element={<InspeccionScreen />} />
+       <Route path="inspeccion/:id"      element={<InspectionDetail />} />
         <Route path="tickets"             element={<TicketsScreen />} />
         <Route path="*"                   element={<Navigate to="/dashboard" replace />} />
       </Route>
