@@ -4,10 +4,9 @@ import AppShell from '@/components/layout/AppShell'
 import AuthScreen from '@/modules/auth/AuthScreen'
 import DashboardScreen from '@/modules/dashboard/DashboardScreen'
 import GemelScreen from '@/modules/gemelo/GemelScreen'
-import InspeccionScreen, { InspectionDetail } from '@/modules/inspeccion/InspeccionScreen'
+import InspeccionScreen, { InspectionDetail, InspeccionList } from '@/modules/inspeccion/InspeccionScreen'
 import TicketsScreen from '@/modules/tickets/TicketsScreen'
 import { Spinner } from '@/components/ui'
-import InspeccionScreen, { InspectionDetail, InspeccionList } from '@/modules/inspeccion/InspeccionScreen'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
