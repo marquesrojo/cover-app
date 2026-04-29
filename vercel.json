@@ -1,5 +1,12 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+    { "source": "/inspeccion/nueva", "destination": "/" },
+    { "source": "/inspeccion/:id",   "destination": "/" },
+    { "source": "/inspeccion",       "destination": "/" },
+    { "source": "/gemelo/:plantId",  "destination": "/" },
+    { "source": "/gemelo",           "destination": "/" },
+    { "source": "/dashboard",        "destination": "/" },
+    { "source": "/tickets",          "destination": "/" },
+    { "source": "/auth",             "destination": "/" }
   ]
 }
