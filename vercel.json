@@ -8,6 +8,7 @@
     { "source": "/gemelo",           "destination": "/" },
     { "source": "/dashboard",        "destination": "/" },
     { "source": "/tickets",          "destination": "/" },
+    { "source": "/obras",            "destination": "/" },
     { "source": "/auth",             "destination": "/" }
   ]
 }
