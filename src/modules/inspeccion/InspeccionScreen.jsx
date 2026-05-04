@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import { supabase } from '@/db/supabase'
 import { useAuth } from '@/store/AuthContext'
 import { C, rciColor, rciLabel, rciRec } from '@/styles/tokens'
-import { Badge, RciGauge, Spinner, Btn, Select, Toggle, SeverityChips, PhotoUpload, AlertBanner } from '@/components/ui'
+import { Badge, RciGauge, Spinner, Btn, Select, Toggle, SeverityChips, PhotoUpload, AlertBanner, Input, TextArea } from '@/components/ui'
 
 const JSA_LABELS=['EPP completo (casco, arnés, línea de vida)','Revisión estructural antes de acceso','Comunicación con supervisor aprobada','Condiciones climáticas verificadas','Señalización del área activa','Punto de anclaje certificado confirmado']
 const STEPS=[{id:1,label:'IDENTIFICACIÓN'},{id:2,label:'JSA'},{id:3,label:'MEMBRANA'},{id:4,label:'UNIONES'},{id:5,label:'DRENAJE'},{id:6,label:'EQUIPOS'},{id:7,label:'RCI FINAL'}]
+const SEV={critico:{color:C.red,label:'CRÍTICO'},moderado:{color:C.orange,label:'MODERADO'},leve:{color:C.yellow,label:'LEVE'}}
+const STAT={abierto:{color:C.red,label:'ABIERTO'},en_proceso:{color:C.blue,label:'EN PROCESO'},resuelto:{color:C.green,label:'RESUELTO'}}
 
 async function uploadPhoto(file,bucket,path){
   const {data,error}=await supabase.storage.from(bucket).upload(path,file,{upsert:true})
@@ -57,11 +59,11 @@ export function InspectionDetail(){
     load()
   },[id])
   if(loading)return<Spinner/>
-  if(!insp)return(<div style={{padding:24}}><button onClick={()=>navigate('/inspeccion')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button><div style={{color:C.muted,textAlign:'center',padding:40}}>Inspección no encontrada</div></div>)
+  if(!insp)return(<div style={{padding:24}}><button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button><div style={{color:C.muted,textAlign:'center',padding:40}}>Inspección no encontrada</div></div>)
   const color=rciColor(insp.rci||0)
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
-      <button onClick={()=>navigate('/inspeccion')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button>
+      <button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button>
       <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:20}}>
         <RciGauge value={insp.rci||0} size={80}/>
         <div>
@@ -83,50 +85,253 @@ export function InspectionDetail(){
   )
 }
 
-export function InspeccionList(){
-  const navigate=useNavigate()
-  const [inspections,setInspections]=useState([])
-  const [loading,setLoading]=useState(true)
-  useEffect(()=>{
-    supabase.from('inspections').select('*, profiles(full_name), plants(name)').eq('status','completed').order('created_at',{ascending:false}).then(({data})=>{setInspections(data||[]);setLoading(false)})
-  },[])
-  if(loading)return<Spinner/>
+// ── MODAL NUEVO TICKET ────────────────────────────────────────
+function NuevoTicketModal({onClose,onCreated}){
+  const {user}=useAuth()
+  const [plants,setPlants]=useState([])
+  const [plantId,setPlantId]=useState('')
+  const [severity,setSeverity]=useState('')
+  const [title,setTitle]=useState('')
+  const [desc,setDesc]=useState('')
+  const [sector,setSector]=useState('')
+  const [photo,setPhoto]=useState(null)
+  const [saving,setSaving]=useState(false)
+
+  useEffect(()=>{supabase.from('plants').select('id,name').order('name').then(({data})=>setPlants(data||[]))},[])
+
+  const create=async()=>{
+    if(!plantId||!severity||!title)return
+    setSaving(true)
+    const payload={plant_id:plantId,created_by:user.id,severity,title,description:desc,sector,status:'abierto'}
+    if(severity==='critico')payload.sla_start_at=new Date().toISOString()
+    const {data,error}=await supabase.from('tickets').insert(payload).select('*, plants(name), profiles!tickets_created_by_fkey(full_name)').single()
+    if(!error){
+      if(photo?.file){
+        try{
+          const path=`${data.id}/foto-${Date.now()}.jpg`
+          const {data:up}=await supabase.storage.from('ticket-photos').upload(path,photo.file)
+          if(up){const {data:{publicUrl}}=supabase.storage.from('ticket-photos').getPublicUrl(path);await supabase.from('ticket_photos').insert({ticket_id:data.id,storage_path:path,public_url:publicUrl,uploaded_by:user.id})}
+        }catch(e){console.error(e)}
+      }
+      onCreated(data)
+    }
+    setSaving(false)
+  }
+
   return(
-    <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}}>
-        <div><div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>REGISTRO</div><div style={{fontSize:20,fontWeight:600,marginTop:2}}>Inspecciones</div></div>
-        <button onClick={()=>navigate('/inspeccion/nueva')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'10px 14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,minHeight:44}}>+ NUEVA</button>
-      </div>
-      {inspections.length===0?(
-        <div style={{textAlign:'center',padding:'40px 0'}}>
-          <div style={{fontSize:32,marginBottom:12}}>📋</div>
-          <div style={{fontSize:14,color:C.muted,marginBottom:16}}>No hay inspecciones realizadas</div>
-          <button onClick={()=>navigate('/inspeccion/nueva')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700}}>+ INICIAR PRIMERA INSPECCIÓN</button>
+    <div style={{position:'fixed',inset:0,background:'#000b',zIndex:500,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px 12px 0 0',padding:20,maxHeight:'90vh',overflowY:'auto',animation:'slideUp 0.25s ease'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <span className="mono" style={{fontSize:12,fontWeight:700,color:C.amber}}>NUEVO TICKET</span>
+          <button onClick={onClose} style={{background:'none',border:'none',color:C.muted,fontSize:18}}>✕</button>
         </div>
-      ):(
-        inspections.map((insp,i)=>{
-          const color=rciColor(insp.rci||0)
-          return(
-            <div key={insp.id} onClick={()=>navigate(`/inspeccion/${insp.id}`)} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'12px 14px',marginBottom:8,cursor:'pointer',display:'flex',alignItems:'center',gap:12,animation:`fadeIn ${0.3+i*0.06}s ease`,transition:'border-color 0.15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.amber+'55'} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-              <RciGauge value={insp.rci||0} size={52}/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,marginBottom:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{insp.plants?.name||'—'}</div>
-                <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
-                  <Badge color={color} small>{rciLabel(insp.rci||0)}</Badge>
-                  <span className="mono" style={{fontSize:9,color:C.muted}}>{insp.type}</span>
-                  <span className="mono" style={{fontSize:9,color:C.muted}}>{new Date(insp.created_at).toLocaleDateString('es-AR')}</span>
-                </div>
-                <div style={{fontSize:11,color:C.muted,marginTop:2}}>{insp.profiles?.full_name}</div>
-              </div>
-              <span style={{color:C.muted,fontSize:16}}>›</span>
-            </div>
-          )
-        })
-      )}
+        <Select label="Planta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/>
+        <Input label="Título del incidente" value={title} onChange={setTitle} placeholder="Ej: Filtración activa en sector B3" required/>
+        <div style={{marginBottom:14}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Severidad *</div>
+          <div style={{display:'flex',gap:6}}>
+            {Object.entries(SEV).map(([k,v])=>(
+              <button key={k} onClick={()=>setSeverity(k)} style={{flex:1,background:severity===k?v.color+'33':C.surface2,border:`1.5px solid ${severity===k?v.color:C.border}`,borderRadius:6,padding:'10px 6px',color:severity===k?v.color:C.muted,fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,minHeight:44}}>{v.label}</button>
+            ))}
+          </div>
+        </div>
+        {severity==='critico'&&<AlertBanner color={C.red} icon="🚨">Inicia contador SLA de 30 días para notificación al proveedor.</AlertBanner>}
+        <TextArea label="Descripción" value={desc} onChange={setDesc} placeholder="Describí el incidente..." rows={3}/>
+        <Input label="Sector / Zona (opcional)" value={sector} onChange={setSector} placeholder="Ej: Sector B-3"/>
+        <PhotoUpload label="Foto del incidente" value={photo} onChange={setPhoto}/>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={onClose} style={{flex:1,background:'none',border:`1px solid ${C.border}`,borderRadius:10,padding:'14px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:12}}>CANCELAR</button>
+          <button onClick={create} disabled={!plantId||!severity||!title||saving} style={{flex:2,background:plantId&&severity&&title&&!saving?C.amber:C.border,color:plantId&&severity&&title&&!saving?C.bg:C.muted,border:'none',borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,minHeight:44,transition:'all 0.2s'}}>
+            {saving?'CREANDO...':'CREAR TICKET'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
 
+// ── MODAL EDITAR TICKET ───────────────────────────────────────
+function EditTicketModal({ticket,onClose,onSaved}){
+  const [status,setStatus]=useState(ticket.status)
+  const [severity,setSeverity]=useState(ticket.severity)
+  const [title,setTitle]=useState(ticket.title)
+  const [desc,setDesc]=useState(ticket.description||'')
+  const [resolution,setResolution]=useState(ticket.resolution_notes||'')
+  const [saving,setSaving]=useState(false)
+  const save=async()=>{
+    setSaving(true)
+    const updates={status,severity,title,description:desc,resolution_notes:resolution,updated_at:new Date().toISOString()}
+    if(status==='resuelto'&&ticket.status!=='resuelto')updates.resolved_at=new Date().toISOString()
+    const {data,error}=await supabase.from('tickets').update(updates).eq('id',ticket.id).select().single()
+    setSaving(false)
+    if(!error){onSaved(data);onClose()}
+  }
+  return(
+    <div style={{position:'fixed',inset:0,background:'#000b',zIndex:500,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px 12px 0 0',padding:20,maxHeight:'90vh',overflowY:'auto',animation:'slideUp 0.25s ease'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <span className="mono" style={{fontSize:12,fontWeight:700,color:C.amber}}>EDITAR TICKET</span>
+          <button onClick={onClose} style={{background:'none',border:'none',color:C.muted,fontSize:18}}>✕</button>
+        </div>
+        <Input label="Título" value={title} onChange={setTitle}/>
+        <TextArea label="Descripción" value={desc} onChange={setDesc} rows={3}/>
+        <div style={{marginBottom:14}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Severidad</div>
+          <div style={{display:'flex',gap:6}}>
+            {Object.entries(SEV).map(([k,v])=>(<button key={k} onClick={()=>setSeverity(k)} style={{flex:1,background:severity===k?v.color+'33':C.surface2,border:`1.5px solid ${severity===k?v.color:C.border}`,borderRadius:6,padding:'10px 6px',color:severity===k?v.color:C.muted,fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,minHeight:44}}>{v.label}</button>))}
+          </div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Estado</div>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {Object.entries(STAT).map(([k,v])=>(<button key={k} onClick={()=>setStatus(k)} style={{background:status===k?v.color+'22':C.surface2,border:`1.5px solid ${status===k?v.color:C.border}`,borderRadius:8,padding:'12px 14px',textAlign:'left',color:status===k?v.color:C.muted,fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,minHeight:44,display:'flex',alignItems:'center',gap:8}}><div style={{width:8,height:8,borderRadius:'50%',background:status===k?v.color:C.muted}}/>{v.label}</button>))}
+          </div>
+        </div>
+        {status==='resuelto'&&<TextArea label="Notas de resolución" value={resolution} onChange={setResolution} placeholder="Cómo se resolvió..." rows={3}/>}
+        <Btn full onClick={save} disabled={saving}>{saving?'GUARDANDO...':'GUARDAR CAMBIOS'}</Btn>
+      </div>
+    </div>
+  )
+}
+
+// ── LISTA GESTIÓN (Inspecciones + Tickets) ────────────────────
+export function InspeccionList(){
+  const navigate=useNavigate()
+  const {user}=useAuth()
+  const [tab,setTab]=useState('inspecciones')
+  const [inspections,setInspections]=useState([])
+  const [tickets,setTickets]=useState([])
+  const [loading,setLoading]=useState(true)
+  const [showNuevoTicket,setShowNuevoTicket]=useState(false)
+  const [editTicket,setEditTicket]=useState(null)
+  const [ticketFilter,setTicketFilter]=useState('activos')
+
+  useEffect(()=>{loadAll()},[])
+
+  async function loadAll(){
+    setLoading(true)
+    const [{data:i},{data:t}]=await Promise.all([
+      supabase.from('inspections').select('*, profiles(full_name), plants(name)').eq('status','completed').order('created_at',{ascending:false}),
+      supabase.from('tickets').select('*, plants(name), profiles!tickets_created_by_fkey(full_name)').order('created_at',{ascending:false})
+    ])
+    setInspections(i||[])
+    setTickets(t||[])
+    setLoading(false)
+  }
+
+  const filteredTickets=ticketFilter==='activos'?tickets.filter(t=>t.status!=='resuelto'):ticketFilter==='resueltos'?tickets.filter(t=>t.status==='resuelto'):tickets
+  const slaUrgent=(t)=>t.severity==='critico'&&t.status!=='resuelto'&&t.sla_start_at&&Math.floor((Date.now()-new Date(t.sla_start_at))/(1000*60*60*24))>=25
+
+  if(loading)return<Spinner/>
+
+  return(
+    <div style={{padding:'0 0 80px',animation:'fadeIn 0.3s ease'}}>
+      {/* Header */}
+      <div style={{padding:'16px 16px 0'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}}>
+          <div>
+            <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>REGISTRO</div>
+            <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Gestión</div>
+          </div>
+          {tab==='inspecciones'?(
+            <button onClick={()=>navigate('/inspeccion/nueva')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'10px 14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,minHeight:44}}>+ INSPECCIÓN</button>
+          ):(
+            <button onClick={()=>setShowNuevoTicket(true)} style={{background:C.red,color:'#fff',border:'none',borderRadius:8,padding:'10px 14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,minHeight:44}}>+ TICKET</button>
+          )}
+        </div>
+
+        {/* Sub-tabs */}
+        <div style={{display:'flex',gap:0,background:C.surface2,borderRadius:8,padding:4,marginBottom:16}}>
+          {[['inspecciones',`Inspecciones (${inspections.length})`],['tickets',`Tickets (${tickets.filter(t=>t.status!=='resuelto').length} activos)`]].map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{flex:1,background:tab===k?C.amber:'transparent',color:tab===k?C.bg:C.muted,border:'none',borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,transition:'all 0.2s'}}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* INSPECCIONES */}
+      {tab==='inspecciones'&&(
+        <div style={{padding:'0 16px'}}>
+          {inspections.length===0?(
+            <div style={{textAlign:'center',padding:'40px 0'}}>
+              <div style={{fontSize:32,marginBottom:12}}>📋</div>
+              <div style={{fontSize:14,color:C.muted,marginBottom:16}}>No hay inspecciones realizadas</div>
+              <button onClick={()=>navigate('/inspeccion/nueva')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700}}>+ INICIAR PRIMERA INSPECCIÓN</button>
+            </div>
+          ):(
+            inspections.map((insp,i)=>{
+              const color=rciColor(insp.rci||0)
+              return(
+                <div key={insp.id} onClick={()=>navigate(`/inspeccion/${insp.id}`)} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'12px 14px',marginBottom:8,cursor:'pointer',display:'flex',alignItems:'center',gap:12,animation:`fadeIn ${0.3+i*0.06}s ease`,transition:'border-color 0.15s'}}
+                  onMouseEnter={e=>e.currentTarget.style.borderColor=C.amber+'55'}
+                  onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+                  <RciGauge value={insp.rci||0} size={52}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,marginBottom:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{insp.plants?.name||'—'}</div>
+                    <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+                      <Badge color={color} small>{rciLabel(insp.rci||0)}</Badge>
+                      <span className="mono" style={{fontSize:9,color:C.muted}}>{insp.type}</span>
+                      <span className="mono" style={{fontSize:9,color:C.muted}}>{new Date(insp.created_at).toLocaleDateString('es-AR')}</span>
+                    </div>
+                    <div style={{fontSize:11,color:C.muted,marginTop:2}}>{insp.profiles?.full_name}</div>
+                  </div>
+                  <span style={{color:C.muted,fontSize:16}}>›</span>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* TICKETS */}
+      {tab==='tickets'&&(
+        <div style={{padding:'0 16px'}}>
+          <div style={{display:'flex',gap:6,marginBottom:14}}>
+            {[['activos','ACTIVOS'],['resueltos','RESUELTOS'],['todos','TODOS']].map(([k,l])=>(
+              <button key={k} onClick={()=>setTicketFilter(k)} style={{background:ticketFilter===k?C.amberDim:C.surface2,border:`1px solid ${ticketFilter===k?C.amber:C.border}`,borderRadius:6,padding:'7px 12px',fontFamily:'IBM Plex Mono',fontSize:9,fontWeight:700,color:ticketFilter===k?C.amber:C.muted,letterSpacing:'0.08em',minHeight:36,transition:'all 0.15s'}}>{l}</button>
+            ))}
+          </div>
+          {filteredTickets.length===0&&<div style={{textAlign:'center',color:C.muted,padding:'40px 0',fontSize:13}}>No hay tickets en este filtro</div>}
+          {filteredTickets.map((t,i)=>{
+            const sev=SEV[t.severity]||SEV.leve
+            const stat=STAT[t.status]||STAT.abierto
+            const urgent=slaUrgent(t)
+            const daysOpen=t.sla_start_at?Math.floor((Date.now()-new Date(t.sla_start_at))/(1000*60*60*24)):null
+            return(
+              <div key={t.id} style={{background:C.surface2,border:`1px solid ${urgent?C.red+'66':C.border}`,borderRadius:8,padding:14,marginBottom:10,animation:`fadeIn ${0.3+i*0.06}s ease`,position:'relative'}}>
+                {urgent&&<div style={{position:'absolute',top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,${C.red},${C.orange})`,borderRadius:'8px 8px 0 0'}}/>}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+                  <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+                    <Badge color={sev.color} small>{sev.label}</Badge>
+                    <Badge color={stat.color} small>{stat.label}</Badge>
+                    {urgent&&<Badge color={C.red}>⚠ SLA D+{daysOpen}</Badge>}
+                  </div>
+                  <button onClick={()=>setEditTicket(t)} style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'5px 10px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:9,letterSpacing:'0.08em'}}>EDITAR</button>
+                </div>
+                <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:4}}>{t.title}</div>
+                {t.description&&<div style={{fontSize:12,color:C.muted,marginBottom:8,lineHeight:1.5}}>{t.description}</div>}
+                <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+                  <span style={{fontSize:11,color:C.muted}}>{t.plants?.name}</span>
+                  {t.sla_start_at&&t.status!=='resuelto'&&<span className="mono" style={{fontSize:10,color:daysOpen>=25?C.red:C.muted}}>SLA: {30-daysOpen}d restantes</span>}
+                  {t.status==='resuelto'&&t.resolved_at&&<span className="mono" style={{fontSize:10,color:C.green}}>Resuelto {new Date(t.resolved_at).toLocaleDateString('es-AR')}</span>}
+                </div>
+                {t.resolution_notes&&t.status==='resuelto'&&(
+                  <div style={{background:C.green+'11',border:`1px solid ${C.green}33`,borderRadius:6,padding:'8px 10px',marginTop:8}}>
+                    <span style={{fontSize:11,color:C.green}}>✓ {t.resolution_notes}</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {showNuevoTicket&&<NuevoTicketModal onClose={()=>setShowNuevoTicket(false)} onCreated={(t)=>{setTickets(prev=>[t,...prev]);setShowNuevoTicket(false)}}/>}
+      {editTicket&&<EditTicketModal ticket={editTicket} onClose={()=>setEditTicket(null)} onSaved={(updated)=>{setTickets(prev=>prev.map(t=>t.id===updated.id?{...t,...updated}:t));setEditTicket(null)}}/>}
+    </div>
+  )
+}
+
+// ── WIZARD INSPECCIÓN ─────────────────────────────────────────
 export default function InspeccionScreen(){
   const navigate=useNavigate()
   const [params]=useSearchParams()
@@ -147,7 +352,9 @@ export default function InspeccionScreen(){
   const [equipPhoto,setEquipPhoto]=useState(null)
   const [saving,setSaving]=useState(false)
   const [savedId,setSavedId]=useState(null)
+
   useEffect(()=>{supabase.from('plants').select('id,name,membrane').order('name').then(({data})=>setPlants(data||[]))},[])
+
   const canNext=()=>{
     if(step===1)return !!(plantId&&type&&membrane)
     if(step===2)return jsa.every(Boolean)
@@ -157,6 +364,7 @@ export default function InspeccionScreen(){
     if(step===6)return equip.every(Boolean)
     return true
   }
+
   const calcRCI=()=>{
     const pen={'Sin daño':0,'Leve':0.25,'Moderado':0.6,'Severo':1}
     const w={perforaciones:18,viento:15,adhesiva:14,ampollas:12,termico:10,cuarteamiento:8,granulos:6,uvDeg:7}
@@ -166,6 +374,7 @@ export default function InspeccionScreen(){
     t+=(pen[memb.granulos]||0)*w.granulos;t+=(pen[memb.uvDeg]||0)*w.uvDeg;if(!drain[1])t+=8
     return Math.max(0,Math.round(100-t))
   }
+
   const save=async()=>{
     setSaving(true)
     const rci=calcRCI()
@@ -176,15 +385,17 @@ export default function InspeccionScreen(){
     }
     setSavedId(insp.id);setSaving(false)
   }
+
   if(savedId){
     const rci=calcRCI()
-    return(<div style={{padding:'24px 16px 80px',textAlign:'center',animation:'fadeIn 0.3s ease'}}><div style={{display:'inline-block',marginBottom:12}}><RciGauge value={rci} size={120}/></div><div style={{marginBottom:8}}><Badge color={rciColor(rci)}>{rciLabel(rci)}</Badge></div><div style={{fontSize:13,color:C.muted,maxWidth:280,margin:'0 auto 20px',lineHeight:1.6}}>{rciRec(rci)}</div><div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:16,textAlign:'left'}}><div className="mono" style={{fontSize:10,color:C.amber,marginBottom:8}}>INSPECCIÓN GUARDADA ✓</div><div className="mono" style={{fontSize:10,color:C.text,wordBreak:'break-all',background:C.bg,padding:'8px 10px',borderRadius:6}}>{window.location.origin}/inspeccion/{savedId}</div></div><Btn full onClick={()=>navigate(`/inspeccion/${savedId}`)}>VER INSPECCIÓN COMPLETA →</Btn><div style={{marginTop:12}}><Btn full outline onClick={()=>navigate('/inspeccion')}>VER TODAS LAS INSPECCIONES</Btn></div></div>)
+    return(<div style={{padding:'24px 16px 80px',textAlign:'center',animation:'fadeIn 0.3s ease'}}><div style={{display:'inline-block',marginBottom:12}}><RciGauge value={rci} size={120}/></div><div style={{marginBottom:8}}><Badge color={rciColor(rci)}>{rciLabel(rci)}</Badge></div><div style={{fontSize:13,color:C.muted,maxWidth:280,margin:'0 auto 20px',lineHeight:1.6}}>{rciRec(rci)}</div><div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:16,textAlign:'left'}}><div className="mono" style={{fontSize:10,color:C.amber,marginBottom:8}}>INSPECCIÓN GUARDADA ✓</div><div className="mono" style={{fontSize:10,color:C.text,wordBreak:'break-all',background:C.bg,padding:'8px 10px',borderRadius:6}}>{window.location.origin}/inspeccion/{savedId}</div></div><Btn full onClick={()=>navigate(`/inspeccion/${savedId}`)}>VER INSPECCIÓN COMPLETA →</Btn><div style={{marginTop:12}}><Btn full outline onClick={()=>navigate('/inspeccion/lista')}>VER TODAS LAS INSPECCIONES</Btn></div></div>)
   }
+
   return(
     <div style={{animation:'fadeIn 0.3s ease'}}>
       <StepBar step={step}/>
       <div style={{padding:'16px 16px 100px'}}>
-        {step===1&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}><button onClick={()=>navigate('/inspeccion')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,padding:0}}>← VOLVER</button><div style={{fontSize:16,fontWeight:600}}>Identificación del Activo</div></div><Select label="Planta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/><Select label="Tipo de inspección" value={type} onChange={setType} options={['Primavera','Otoño','Post-Evento','Extraordinaria']} required/><Select label="Membrana" value={membrane} onChange={setMembrane} options={['TPO','EPDM','PVC','Asfáltica']} required/></div>)}
+        {step===1&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}><button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,padding:0}}>← VOLVER</button><div style={{fontSize:16,fontWeight:600}}>Identificación del Activo</div></div><Select label="Planta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/><Select label="Tipo de inspección" value={type} onChange={setType} options={['Primavera','Otoño','Post-Evento','Extraordinaria']} required/><Select label="Membrana" value={membrane} onChange={setMembrane} options={['TPO','EPDM','PVC','Asfáltica']} required/></div>)}
         {step===2&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{fontSize:16,fontWeight:600,marginBottom:4}}>JSA — Análisis de Seguridad</div><AlertBanner color={C.amber} icon="⚠">Ley 19.587 / Decreto 911/96 — Todos los controles son obligatorios</AlertBanner>{JSA_LABELS.map((l,i)=><Toggle key={i} label={l} value={jsa[i]} onChange={v=>{const a=[...jsa];a[i]=v;setJsa(a)}}/>)}<div className="mono" style={{fontSize:10,color:jsa.every(Boolean)?C.green:C.red,marginTop:12}}>{jsa.every(Boolean)?'✓ TODOS LOS CONTROLES OK':`✗ ${jsa.filter(Boolean).length}/6 COMPLETADOS`}</div></div>)}
         {step===3&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{fontSize:16,fontWeight:600,marginBottom:16}}>Superficie de Membrana</div>{[['Cuarteamiento superficial','cuarteamiento'],['Ampollas (blistering)','ampollas'],['Pérdida de gránulos','granulos'],['Perforaciones / punzocortantes','perforaciones'],['Degradación UV','uvDeg']].map(([label,key])=>(<div key={key} style={{marginBottom:16}}><div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{label}</div><SeverityChips value={memb[key]} onChange={v=>setMemb(p=>({...p,[key]:v}))}/></div>))}<PhotoUpload label="Foto de membrana (obligatorio)" value={membPhoto} onChange={setMembPhoto}/></div>)}
         {step===4&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{fontSize:16,fontWeight:600,marginBottom:16}}>Uniones y Costuras</div>{[['Levantamiento por viento','viento'],['Separación adhesiva','adhesiva'],['Estrés térmico','termico']].map(([label,key])=>(<div key={key} style={{marginBottom:16}}><div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{label}</div><SeverityChips value={uniones[key]} onChange={v=>setUniones(p=>({...p,[key]:v}))}/></div>))}<PhotoUpload label="Foto de costura crítica" value={unionPhoto} onChange={setUnionPhoto}/></div>)}
