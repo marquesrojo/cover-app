@@ -85,7 +85,7 @@ export default function DashboardScreen(){
             <KPICard label="RCI Promedio" value={avgRci} color={rciColor(avgRci)} sub={rciLabel(avgRci)}/>
             <KPICard label="Plantas" value={plants.length} color={C.blue} sub="en portafolio"/>
             <KPICard label="Alertas Activas" value={tickets.length} color={criticals>0?C.red:C.amber} sub={criticals>0?`${criticals} críticos`:'Sin críticos'}/>
-            <KPICard label="Inspecciones" value="—" color={C.muted} sub="este mes"/>
+            <KPICard label="Inspecciones" value={inspections} color={C.blue} sub="este mes"/>
           </div>
           <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:16}}>
             <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Distribución por RCI</div>
