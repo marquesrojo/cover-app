@@ -6,6 +6,7 @@ const TABS=[
   {path:'/dashboard',icon:'▦',label:'DASHBOARD'},
   {path:'/gemelo',icon:'◫',label:'GEMELO'},
   {path:'/inspeccion/lista',icon:'✓',label:'GESTIÓN'},
+  {path:'/calendario',icon:'📅',label:'PLAN'},
   {path:'/obras',icon:'🔨',label:'OBRAS'},
 ]
 
@@ -34,9 +35,9 @@ function NavBar(){
       {TABS.map(t=>{
         const on=pathname.startsWith(t.path)
         return(
-          <button key={t.path} onClick={()=>navigate(t.path)} style={{flex:1,background:'none',border:'none',borderBottom:on?`2px solid ${C.amber}`:'2px solid transparent',padding:'10px 4px 8px',display:'flex',flexDirection:'column',alignItems:'center',gap:3,minHeight:56}}>
-            <span style={{fontSize:18,color:on?C.amber:C.muted}}>{t.icon}</span>
-            <span className="mono" style={{fontSize:8,letterSpacing:'0.1em',color:on?C.amber:C.muted,fontWeight:700}}>{t.label}</span>
+          <button key={t.path} onClick={()=>navigate(t.path)} style={{flex:1,background:'none',border:'none',borderBottom:on?`2px solid ${C.amber}`:'2px solid transparent',padding:'8px 2px 6px',display:'flex',flexDirection:'column',alignItems:'center',gap:2,minHeight:52}}>
+            <span style={{fontSize:16,color:on?C.amber:C.muted}}>{t.icon}</span>
+            <span className="mono" style={{fontSize:7,letterSpacing:'0.06em',color:on?C.amber:C.muted,fontWeight:700}}>{t.label}</span>
           </button>
         )
       })}
