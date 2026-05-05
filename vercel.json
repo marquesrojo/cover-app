@@ -1,14 +1,16 @@
 {
   "rewrites": [
-    { "source": "/inspeccion/lista", "destination": "/" },
-    { "source": "/inspeccion/nueva", "destination": "/" },
-    { "source": "/inspeccion/:id",   "destination": "/" },
-    { "source": "/inspeccion",       "destination": "/" },
-    { "source": "/gemelo/:plantId",  "destination": "/" },
-    { "source": "/gemelo",           "destination": "/" },
-    { "source": "/dashboard",        "destination": "/" },
-    { "source": "/tickets",          "destination": "/" },
-    { "source": "/obras",            "destination": "/" },
-    { "source": "/auth",             "destination": "/" }
+    { "source": "/inspeccion/lista",    "destination": "/" },
+    { "source": "/inspeccion/nueva",    "destination": "/" },
+    { "source": "/inspeccion/:id",      "destination": "/" },
+    { "source": "/inspeccion",          "destination": "/" },
+    { "source": "/gemelo/:plantId",     "destination": "/" },
+    { "source": "/gemelo",              "destination": "/" },
+    { "source": "/dashboard",           "destination": "/" },
+    { "source": "/tickets",             "destination": "/" },
+    { "source": "/obras/legajo/:id",    "destination": "/" },
+    { "source": "/obras",               "destination": "/" },
+    { "source": "/calendario",          "destination": "/" },
+    { "source": "/auth",                "destination": "/" }
   ]
 }
