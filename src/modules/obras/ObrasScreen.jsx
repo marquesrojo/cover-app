@@ -226,10 +226,10 @@ function ObraDetail({obraId,onBack}){
         <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
           <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Cronograma</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            {[['Inicio plan.',obra.planned_start],['Fin plan.',obra.planned_end],['Inicio real',obra.actual_start||'—'],['Fin real',obra.actual_end||'—']].map(([l,v])=>(
+            {[['Inicio plan.',obra.planned_start],['Fin plan.',obra.planned_end],['Inicio real',obra.actual_start||'--'],['Fin real',obra.actual_end||'--']].map(([l,v])=>(
               <div key={l}>
                 <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>{l}</div>
-                <div style={{fontSize:13,color:C.text,marginTop:2}}>{v||'—'}</div>
+                <div style={{fontSize:13,color:C.text,marginTop:2}}>{v||'--'}</div>
               </div>
             ))}
           </div>
@@ -263,10 +263,9 @@ function ObraDetail({obraId,onBack}){
       </div>
 
       <div style={{marginBottom:12}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Legajo de obra</div>
-          <button onClick={()=>navigate(`/obras/legajo/${obraId}`)} style={{background:C.blue,color:'#fff',border:'none',borderRadius:6,padding:'8px 12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700}}>VER LEGAJO</button>
-        </div>
+        <button onClick={()=>navigate(`/obras/legajo/${obraId}`)} style={{width:'100%',background:C.blue,color:'#fff',border:'none',borderRadius:8,padding:'12px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,cursor:'pointer'}}>
+          VER LEGAJO DE OBRA
+        </button>
       </div>
 
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
@@ -277,27 +276,36 @@ function ObraDetail({obraId,onBack}){
       {partes.length===0?(
         <div style={{textAlign:'center',padding:'24px 0',color:C.muted,fontSize:13}}>Sin partes diarios. Carga el primer avance.</div>
       ):(
-        partes.map((p,i)=>(
-          <div key={p.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8,animation:`fadeIn ${0.3+i*0.05}s ease`}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-              <span className="mono" style={{fontSize:11,fontWeight:700,color:C.amber}}>{p.date}</span>
-              <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                {p.weather&&<span className="mono" style={{fontSize:10,color:C.muted}}>{WEATHER_ICON[p.weather]||p.weather}</span>}
-                <Badge color={C.green} small>{p.progress_pct}%</Badge>
+        partes.map((p,i)=>{
+          const parteUrl=`${window.location.origin}/obras/parte/${p.id}`
+          const whatsappText=encodeURIComponent(`Parte diario de obra\nFecha: ${p.date}\nAvance: ${p.progress_pct}%\nVer detalle: ${parteUrl}`)
+          const whatsappUrl=`https://wa.me/?text=${whatsappText}`
+          return(
+            <div key={p.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8,animation:`fadeIn ${0.3+i*0.05}s ease`}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                <span className="mono" style={{fontSize:11,fontWeight:700,color:C.amber}}>{p.date}</span>
+                <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                  {p.weather&&<span className="mono" style={{fontSize:10,color:C.muted}}>{WEATHER_ICON[p.weather]||p.weather}</span>}
+                  <Badge color={C.green} small>{p.progress_pct}%</Badge>
+                </div>
               </div>
-            </div>
-            {p.work_types?.length>0&&(
-              <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
-                {p.work_types.map(t=><span key={t} style={{background:C.amber+'22',color:C.amber,border:`1px solid ${C.amber}44`,borderRadius:3,padding:'2px 6px',fontSize:9,fontFamily:'IBM Plex Mono'}}>{t}</span>)}
+              {p.work_types?.length>0&&(
+                <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
+                  {p.work_types.map(t=><span key={t} style={{background:C.amber+'22',color:C.amber,border:`1px solid ${C.amber}44`,borderRadius:3,padding:'2px 6px',fontSize:9,fontFamily:'IBM Plex Mono'}}>{t}</span>)}
+                </div>
+              )}
+              <div style={{display:'flex',gap:12,marginBottom:p.notes?8:0}}>
+                <span className="mono" style={{fontSize:10,color:C.muted}}>{p.workers_count} operarios</span>
+                <span className="mono" style={{fontSize:10,color:C.muted}}>{p.hours_worked}hs</span>
               </div>
-            )}
-            <div style={{display:'flex',gap:12,marginBottom:p.notes?8:0}}>
-              <span className="mono" style={{fontSize:10,color:C.muted}}>{p.workers_count} operarios</span>
-              <span className="mono" style={{fontSize:10,color:C.muted}}>{p.hours_worked}hs</span>
+              {p.notes&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5,marginBottom:8}}>{p.notes}</div>}
+              {/* Botón compartir WhatsApp */}
+              <a href={whatsappUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:'#25D366',color:'#fff',borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,textDecoration:'none',marginTop:8}}>
+                COMPARTIR PARTE POR WHATSAPP
+              </a>
             </div>
-            {p.notes&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5}}>{p.notes}</div>}
-          </div>
-        ))
+          )
+        })
       )}
 
       {fotos.length>0&&(
