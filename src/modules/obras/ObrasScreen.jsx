@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/db/supabase'
 import { useAuth } from '@/store/AuthContext'
 import { C, rciColor } from '@/styles/tokens'
 import { Badge, Spinner, Btn, Input, TextArea, Select, PhotoUpload, AlertBanner } from '@/components/ui'
 
 const STATUS={planificada:{color:C.blue,label:'PLANIFICADA'},en_curso:{color:C.amber,label:'EN CURSO'},pausada:{color:C.orange,label:'PAUSADA'},finalizada:{color:C.green,label:'FINALIZADA'}}
-const WORK_TYPES=['Demolición','Impermeabilización','Aplicación membrana','Soldadura','Sellado','Inspección NDT','Limpieza','Otros']
+const WORK_TYPES=['Demolicion','Impermeabilizacion','Aplicacion membrana','Soldadura','Sellado','Inspeccion NDT','Limpieza','Otros']
 const WEATHER=['Soleado','Nublado','Lluvia','Viento fuerte']
+const WEATHER_ICON={'Soleado':'Sol','Nublado':'Nub','Lluvia':'Lluv','Viento fuerte':'Viento'}
 
 function NuevaObraForm({onCreated,onCancel}){
   const {user}=useAuth()
@@ -21,7 +22,7 @@ function NuevaObraForm({onCreated,onCancel}){
   const [contractor,setContractor]=useState('')
   const [plannedStart,setPlannedStart]=useState('')
   const [plannedEnd,setPlannedEnd]=useState('')
-  const [hitos,setHitos]=useState([{title:'Inicio de obra',planned_date:''},{title:'Finalización',planned_date:''}])
+  const [hitos,setHitos]=useState([{title:'Inicio de obra',planned_date:''},{title:'Finalizacion',planned_date:''}])
   const [saving,setSaving]=useState(false)
   const [error,setError]=useState('')
 
@@ -33,7 +34,7 @@ function NuevaObraForm({onCreated,onCancel}){
   const removeHito=(i)=>setHitos(prev=>prev.filter((_,idx)=>idx!==i))
 
   const save=async()=>{
-    if(!plantId||!title||!type){setError('Planta, título y tipo son obligatorios');return}
+    if(!plantId||!title||!type){setError('Planta, titulo y tipo son obligatorios');return}
     setSaving(true);setError('')
     const {data:obra,error:e}=await supabase.from('obras').insert({plant_id:plantId,ticket_id:ticketId||null,title,description,type,contractor,planned_start:plannedStart||null,planned_end:plannedEnd||null,status:'planificada',created_by:user.id}).select().single()
     if(e){setError(e.message);setSaving(false);return}
@@ -45,14 +46,14 @@ function NuevaObraForm({onCreated,onCancel}){
 
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
-      <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button>
+      <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button>
       <div style={{fontSize:18,fontWeight:600,marginBottom:20}}>Nueva Obra</div>
-      {error&&<AlertBanner color={C.red} icon="✗">{error}</AlertBanner>}
+      {error&&<AlertBanner color={C.red} icon="!">{error}</AlertBanner>}
       <Select label="Planta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/>
       {tickets.length>0&&<Select label="Ticket origen (opcional)" value={ticketId} onChange={setTicketId} options={tickets.map(t=>({value:t.id,label:t.title}))}/>}
-      <Input label="Título de la obra" value={title} onChange={setTitle} placeholder="Ej: Restauración sector Norte" required/>
-      <Select label="Tipo de obra" value={type} onChange={setType} options={['Reparación puntual','Restauración parcial','Reemplazo total','Mantenimiento preventivo']} required/>
-      <TextArea label="Descripción" value={description} onChange={setDescription} placeholder="Alcance y detalles..." rows={3}/>
+      <Input label="Titulo de la obra" value={title} onChange={setTitle} placeholder="Ej: Restauracion sector Norte" required/>
+      <Select label="Tipo de obra" value={type} onChange={setType} options={['Reparacion puntual','Restauracion parcial','Reemplazo total','Mantenimiento preventivo']} required/>
+      <TextArea label="Descripcion" value={description} onChange={setDescription} placeholder="Alcance y detalles..." rows={3}/>
       <Input label="Contratista / Empresa ejecutora" value={contractor} onChange={setContractor} placeholder="Nombre del contratista"/>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
         <Input label="Inicio planificado" type="date" value={plannedStart} onChange={setPlannedStart}/>
@@ -67,11 +68,11 @@ function NuevaObraForm({onCreated,onCancel}){
           <div key={i} style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
             <input value={h.title} onChange={e=>updateHito(i,'title',e.target.value)} placeholder={`Hito ${i+1}`} style={{flex:1,background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',color:C.text,fontSize:12,outline:'none'}}/>
             <input type="date" value={h.planned_date} onChange={e=>updateHito(i,'planned_date',e.target.value)} style={{width:130,background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 8px',color:C.text,fontSize:11,outline:'none'}}/>
-            {hitos.length>1&&<button onClick={()=>removeHito(i)} style={{background:'none',border:'none',color:C.red,fontSize:16,padding:'0 4px'}}>✕</button>}
+            {hitos.length>1&&<button onClick={()=>removeHito(i)} style={{background:'none',border:'none',color:C.red,fontSize:16,padding:'0 4px'}}>x</button>}
           </div>
         ))}
       </div>
-      <Btn full onClick={save} disabled={saving}>{saving?'CREANDO...':'CREAR OBRA →'}</Btn>
+      <Btn full onClick={save} disabled={saving}>{saving?'CREANDO...':'CREAR OBRA'}</Btn>
     </div>
   )
 }
@@ -110,7 +111,7 @@ function NuevoParteForm({obraId,onCreated,onCancel}){
 
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
-      <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button>
+      <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button>
       <div style={{fontSize:18,fontWeight:600,marginBottom:20}}>Nuevo Parte Diario</div>
       <Input label="Fecha" type="date" value={date} onChange={setDate}/>
       <div style={{marginBottom:14}}>
@@ -126,19 +127,19 @@ function NuevoParteForm({obraId,onCreated,onCancel}){
         <Input label="Horas trabajadas" type="number" value={hoursWorked} onChange={setHoursWorked}/>
       </div>
       <div style={{marginBottom:14}}>
-        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>% Avance acumulado: <span style={{color:C.amber}}>{progressPct}%</span></div>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Avance acumulado: <span style={{color:C.amber}}>{progressPct}%</span></div>
         <input type="range" min={0} max={100} value={progressPct} onChange={e=>setProgressPct(e.target.value)} style={{width:'100%',accentColor:C.amber}}/>
         <div style={{display:'flex',justifyContent:'space-between'}}><span className="mono" style={{fontSize:9,color:C.muted}}>0%</span><span className="mono" style={{fontSize:9,color:C.muted}}>100%</span></div>
       </div>
       <div style={{marginBottom:14}}>
-        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Condición climática</div>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Condicion climatica</div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {WEATHER.map(w=>(
             <button key={w} onClick={()=>setWeather(weather===w?'':w)} style={{background:weather===w?C.blue+'33':C.surface2,border:`1.5px solid ${weather===w?C.blue:C.border}`,borderRadius:6,padding:'8px 12px',color:weather===w?C.blue:C.muted,fontSize:12,minHeight:44,transition:'all 0.15s'}}>{w}</button>
           ))}
         </div>
       </div>
-      <TextArea label="Notas del día" value={notes} onChange={setNotes} placeholder="Descripción de trabajos realizados, inconvenientes, observaciones..." rows={4}/>
+      <TextArea label="Notas del dia" value={notes} onChange={setNotes} placeholder="Descripcion de trabajos realizados, inconvenientes, observaciones..." rows={4}/>
       <PhotoUpload label="Foto del avance" value={photo} onChange={setPhoto}/>
       <Btn full onClick={save} disabled={saving}>{saving?'GUARDANDO...':'GUARDAR PARTE DIARIO'}</Btn>
     </div>
@@ -146,6 +147,7 @@ function NuevoParteForm({obraId,onCreated,onCancel}){
 }
 
 function ObraDetail({obraId,onBack}){
+  const navigate=useNavigate()
   const {user}=useAuth()
   const [obra,setObra]=useState(null)
   const [partes,setPartes]=useState([])
@@ -153,7 +155,6 @@ function ObraDetail({obraId,onBack}){
   const [fotos,setFotos]=useState([])
   const [loading,setLoading]=useState(true)
   const [showNuevoParte,setShowNuevoParte]=useState(false)
-  const [saving,setSaving]=useState(false)
 
   useEffect(()=>{loadData()},[obraId])
 
@@ -191,20 +192,18 @@ function ObraDetail({obraId,onBack}){
 
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
-      <button onClick={onBack} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button>
+      <button onClick={onBack} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button>
 
-      {/* Header */}
       <div style={{marginBottom:16}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
           <div style={{fontSize:18,fontWeight:600,flex:1,paddingRight:10}}>{obra.title}</div>
           <Badge color={stat.color}>{stat.label}</Badge>
         </div>
         <div className="mono" style={{fontSize:10,color:C.muted}}>{obra.plants?.name}</div>
-        {obra.contractor&&<div style={{fontSize:12,color:C.mutedLight,marginTop:2}}>🏗 {obra.contractor}</div>}
-        {obra.tickets&&<div style={{fontSize:11,color:C.muted,marginTop:2}}>🎫 Ticket: {obra.tickets.title}</div>}
+        {obra.contractor&&<div style={{fontSize:12,color:C.mutedLight,marginTop:2}}>{obra.contractor}</div>}
+        {obra.tickets&&<div style={{fontSize:11,color:C.muted,marginTop:2}}>Ticket: {obra.tickets.title}</div>}
       </div>
 
-      {/* Progress bar */}
       <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
         <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
           <span className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Avance</span>
@@ -214,7 +213,7 @@ function ObraDetail({obraId,onBack}){
           <div style={{height:'100%',width:`${lastProgress}%`,background:`linear-gradient(90deg,${C.amber},${C.green})`,borderRadius:4,transition:'width 0.8s ease'}}/>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:12}}>
-          {[['Días trabajados',totalDays],['Horas totales',totalHours],['Hitos',`${hitosCompleted}/${hitos.length}`]].map(([l,v])=>(
+          {[['Dias trabajados',totalDays],['Horas totales',totalHours],['Hitos',`${hitosCompleted}/${hitos.length}`]].map(([l,v])=>(
             <div key={l} style={{textAlign:'center'}}>
               <div className="mono" style={{fontSize:16,fontWeight:700,color:C.text}}>{v}</div>
               <div className="mono" style={{fontSize:8,color:C.muted,textTransform:'uppercase'}}>{l}</div>
@@ -223,7 +222,6 @@ function ObraDetail({obraId,onBack}){
         </div>
       </div>
 
-      {/* Fechas */}
       {(obra.planned_start||obra.planned_end)&&(
         <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
           <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Cronograma</div>
@@ -238,25 +236,23 @@ function ObraDetail({obraId,onBack}){
         </div>
       )}
 
-      {/* Hitos */}
       {hitos.length>0&&(
         <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
           <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Hitos</div>
           {hitos.map(h=>(
             <div key={h.id} onClick={()=>toggleHito(h)} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:`1px solid ${C.border}`,cursor:'pointer',minHeight:44}}>
               <div style={{width:20,height:20,borderRadius:'50%',background:h.completed?C.green+'33':C.border,border:`2px solid ${h.completed?C.green:C.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                {h.completed&&<span style={{color:C.green,fontSize:11}}>✓</span>}
+                {h.completed&&<span style={{color:C.green,fontSize:11}}>v</span>}
               </div>
               <div style={{flex:1}}>
                 <div style={{fontSize:13,color:h.completed?C.muted:C.text,textDecoration:h.completed?'line-through':'none'}}>{h.title}</div>
-                {h.planned_date&&<div className="mono" style={{fontSize:9,color:C.muted}}>Plan: {h.planned_date}{h.actual_date?` · Real: ${h.actual_date}`:''}</div>}
+                {h.planned_date&&<div className="mono" style={{fontSize:9,color:C.muted}}>Plan: {h.planned_date}{h.actual_date?` - Real: ${h.actual_date}`:''}</div>}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Cambiar estado */}
       <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
         <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Estado de la obra</div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
@@ -266,21 +262,27 @@ function ObraDetail({obraId,onBack}){
         </div>
       </div>
 
-      {/* Partes diarios */}
+      <div style={{marginBottom:12}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Legajo de obra</div>
+          <button onClick={()=>navigate(`/obras/legajo/${obraId}`)} style={{background:C.blue,color:'#fff',border:'none',borderRadius:6,padding:'8px 12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700}}>VER LEGAJO</button>
+        </div>
+      </div>
+
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
         <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Partes diarios ({partes.length})</div>
         <button onClick={()=>setShowNuevoParte(true)} style={{background:C.amber,color:C.bg,border:'none',borderRadius:6,padding:'8px 12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700}}>+ PARTE</button>
       </div>
 
       {partes.length===0?(
-        <div style={{textAlign:'center',padding:'24px 0',color:C.muted,fontSize:13}}>Sin partes diarios aún. Cargá el primer avance.</div>
+        <div style={{textAlign:'center',padding:'24px 0',color:C.muted,fontSize:13}}>Sin partes diarios. Carga el primer avance.</div>
       ):(
         partes.map((p,i)=>(
           <div key={p.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8,animation:`fadeIn ${0.3+i*0.05}s ease`}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
               <span className="mono" style={{fontSize:11,fontWeight:700,color:C.amber}}>{p.date}</span>
               <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                {p.weather&&<span style={{fontSize:11}}>{p.weather==='Soleado'?'☀️':p.weather==='Nublado'?'☁️':p.weather==='Lluvia'?'🌧':p.weather==='Viento fuerte'?'💨':''}}</span>}
+                {p.weather&&<span className="mono" style={{fontSize:10,color:C.muted}}>{WEATHER_ICON[p.weather]||p.weather}</span>}
                 <Badge color={C.green} small>{p.progress_pct}%</Badge>
               </div>
             </div>
@@ -290,23 +292,21 @@ function ObraDetail({obraId,onBack}){
               </div>
             )}
             <div style={{display:'flex',gap:12,marginBottom:p.notes?8:0}}>
-              <span className="mono" style={{fontSize:10,color:C.muted}}>👷 {p.workers_count} op.</span>
-              <span className="mono" style={{fontSize:10,color:C.muted}}>⏱ {p.hours_worked}hs</span>
+              <span className="mono" style={{fontSize:10,color:C.muted}}>{p.workers_count} operarios</span>
+              <span className="mono" style={{fontSize:10,color:C.muted}}>{p.hours_worked}hs</span>
             </div>
             {p.notes&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5}}>{p.notes}</div>}
           </div>
         ))
       )}
 
-      {/* Galería de fotos */}
       {fotos.length>0&&(
         <div style={{marginTop:16}}>
-          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Registro fotográfico ({fotos.length})</div>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Fotos ({fotos.length})</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             {fotos.map(f=>(
               <div key={f.id}>
                 <img src={f.public_url} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}}/>
-                {f.caption&&<div style={{fontSize:11,color:C.muted,marginTop:4}}>{f.caption}</div>}
               </div>
             ))}
           </div>
@@ -318,7 +318,6 @@ function ObraDetail({obraId,onBack}){
 
 export default function ObrasScreen(){
   const navigate=useNavigate()
-  const {user}=useAuth()
   const [obras,setObras]=useState([])
   const [loading,setLoading]=useState(true)
   const [showNueva,setShowNueva]=useState(false)
@@ -359,7 +358,6 @@ export default function ObrasScreen(){
 
       {filtered.length===0?(
         <div style={{textAlign:'center',padding:'40px 0'}}>
-          <div style={{fontSize:32,marginBottom:12}}>🔨</div>
           <div style={{fontSize:14,color:C.muted,marginBottom:16}}>{filter==='activas'?'No hay obras activas':'No hay obras en este filtro'}</div>
           <button onClick={()=>setShowNueva(true)} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700}}>+ CREAR PRIMERA OBRA</button>
         </div>
@@ -376,10 +374,10 @@ export default function ObrasScreen(){
                 <Badge color={stat.color} small>{stat.label}</Badge>
               </div>
               <div style={{fontSize:11,color:C.muted,marginBottom:8}}>{o.plants?.name}</div>
-              {o.contractor&&<div style={{fontSize:11,color:C.mutedLight,marginBottom:8}}>🏗 {o.contractor}</div>}
+              {o.contractor&&<div style={{fontSize:11,color:C.mutedLight,marginBottom:8}}>{o.contractor}</div>}
               <div style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}}>
                 {o.planned_start&&<span className="mono" style={{fontSize:9,color:C.muted}}>Inicio: {o.planned_start}</span>}
-                {o.planned_end&&<span className="mono" style={{fontSize:9,color:o.status!=='finalizada'&&diasRestantes<0?C.red:C.muted}}>Fin: {o.planned_end}{o.status!=='finalizada'&&diasRestantes!==null?` (${diasRestantes>0?`${diasRestantes}d restantes`:'vencida'})`:''}  </span>}
+                {o.planned_end&&<span className="mono" style={{fontSize:9,color:o.status!=='finalizada'&&diasRestantes<0?C.red:C.muted}}>Fin: {o.planned_end}{o.status!=='finalizada'&&diasRestantes!==null?` (${diasRestantes>0?`${diasRestantes}d restantes`:'vencida'})`:''}</span>}
               </div>
             </div>
           )
