@@ -7,6 +7,8 @@ import GemelScreen from '@/modules/gemelo/GemelScreen'
 import InspeccionScreen, { InspectionDetail, InspeccionList } from '@/modules/inspeccion/InspeccionScreen'
 import TicketsScreen from '@/modules/tickets/TicketsScreen'
 import ObrasScreen from '@/modules/obras/ObrasScreen'
+import LegajoObra from '@/modules/obras/LegajoObra'
+import CalendarioScreen from '@/modules/calendario/CalendarioScreen'
 import { Spinner } from '@/components/ui'
 
 function PrivateRoute({ children }) {
@@ -37,6 +39,8 @@ export default function App() {
         <Route path="inspeccion/:id"   element={<InspectionDetail />} />
         <Route path="tickets"          element={<TicketsScreen />} />
         <Route path="obras"            element={<ObrasScreen />} />
+        <Route path="obras/legajo/:id" element={<LegajoObra />} />
+        <Route path="calendario"       element={<CalendarioScreen />} />
         <Route path="*"                element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
