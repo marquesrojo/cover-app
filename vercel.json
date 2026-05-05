@@ -7,8 +7,8 @@
     { "source": "/gemelo/:plantId",     "destination": "/" },
     { "source": "/gemelo",              "destination": "/" },
     { "source": "/dashboard",           "destination": "/" },
-    { "source": "/tickets",             "destination": "/" },
     { "source": "/obras/legajo/:id",    "destination": "/" },
+    { "source": "/obras/parte/:id",     "destination": "/" },
     { "source": "/obras",               "destination": "/" },
     { "source": "/calendario",          "destination": "/" },
     { "source": "/auth",                "destination": "/" }
