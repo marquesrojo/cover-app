@@ -5,9 +5,9 @@ import AuthScreen from '@/modules/auth/AuthScreen'
 import DashboardScreen from '@/modules/dashboard/DashboardScreen'
 import GemelScreen from '@/modules/gemelo/GemelScreen'
 import InspeccionScreen, { InspectionDetail, InspeccionList } from '@/modules/inspeccion/InspeccionScreen'
-import TicketsScreen from '@/modules/tickets/TicketsScreen'
 import ObrasScreen from '@/modules/obras/ObrasScreen'
 import LegajoObra from '@/modules/obras/LegajoObra'
+import ParteDetalle from '@/modules/obras/ParteDetalle'
 import CalendarioScreen from '@/modules/calendario/CalendarioScreen'
 import { Spinner } from '@/components/ui'
 
@@ -29,6 +29,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <AuthScreen />} />
+      <Route path="/obras/parte/:id" element={<ParteDetalle />} />
       <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard"        element={<DashboardScreen />} />
@@ -37,7 +38,6 @@ export default function App() {
         <Route path="inspeccion/lista" element={<InspeccionList />} />
         <Route path="inspeccion/nueva" element={<InspeccionScreen />} />
         <Route path="inspeccion/:id"   element={<InspectionDetail />} />
-        <Route path="tickets"          element={<TicketsScreen />} />
         <Route path="obras"            element={<ObrasScreen />} />
         <Route path="obras/legajo/:id" element={<LegajoObra />} />
         <Route path="calendario"       element={<CalendarioScreen />} />
