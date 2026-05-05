@@ -36,23 +36,31 @@ export default function DashboardScreen(){
   const navigate=useNavigate()
   const [plants,setPlants]=useState([])
   const [tickets,setTickets]=useState([])
+  const [inspectionsCount,setInspectionsCount]=useState(0)
   const [loading,setLoading]=useState(true)
 
   useEffect(()=>{fetchData()},[])
 
   async function fetchData(){
     setLoading(true)
-    const [{data:p},{data:t}]=await Promise.all([
+
+    const startOfMonth=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString()
+
+    const [{data:p},{data:t},{count}]=await Promise.all([
       supabase.from('plants').select('*, sectors(rci)').order('created_at',{ascending:false}),
-      supabase.from('tickets').select('*').neq('status','resuelto')
+      supabase.from('tickets').select('*').neq('status','resuelto'),
+      supabase.from('inspections').select('*',{count:'exact',head:true}).gte('created_at',startOfMonth).eq('status','completed'),
     ])
+
     const plantsWithRci=(p||[]).map(pl=>{
       const rcis=(pl.sectors||[]).map(s=>s.rci).filter(r=>r!=null)
       const avg=rcis.length?Math.round(rcis.reduce((a,b)=>a+b,0)/rcis.length):100
       return{...pl,rciAvg:avg}
     })
+
     setPlants(plantsWithRci)
     setTickets(t||[])
+    setInspectionsCount(count||0)
     setLoading(false)
   }
 
@@ -67,12 +75,15 @@ export default function DashboardScreen(){
     critico:plants.filter(p=>p.rciAvg<30).length,
   }
 
+  const mesActual=new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase()
+
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
       <div style={{marginBottom:16}}>
-        <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>PORTAFOLIO</div>
+        <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>PORTAFOLIO — {mesActual}</div>
         <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Dashboard</div>
       </div>
+
       {plants.length===0?(
         <div style={{textAlign:'center',padding:'40px 0'}}>
           <div style={{fontSize:32,marginBottom:12}}>🏭</div>
@@ -84,20 +95,23 @@ export default function DashboardScreen(){
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
             <KPICard label="RCI Promedio" value={avgRci} color={rciColor(avgRci)} sub={rciLabel(avgRci)}/>
             <KPICard label="Plantas" value={plants.length} color={C.blue} sub="en portafolio"/>
-            <KPICard label="Alertas Activas" value={tickets.length} color={criticals>0?C.red:C.amber} sub={criticals>0?`${criticals} críticos`:'Sin críticos'}/>
-            <KPICard label="Inspecciones" value={inspections} color={C.blue} sub="este mes"/>
+            <KPICard label="Alertas Activas" value={tickets.length} color={criticals>0?C.red:C.amber} sub={criticals>0?`${criticals} criticos`:'Sin criticos'}/>
+            <KPICard label="Inspecciones" value={inspectionsCount} color={C.blue} sub="este mes"/>
           </div>
+
           <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:16}}>
-            <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Distribución por RCI</div>
-            <DistBar label="EXCELENTE  70–100" count={dist.excelente} total={plants.length} color={C.green}/>
-            <DistBar label="REGULAR    50–69" count={dist.regular} total={plants.length} color={C.yellow}/>
-            <DistBar label="POBRE      30–49" count={dist.pobre} total={plants.length} color={C.orange}/>
-            <DistBar label="CRÍTICO     0–29" count={dist.critico} total={plants.length} color={C.red}/>
+            <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Distribucion por RCI</div>
+            <DistBar label="EXCELENTE  70-100" count={dist.excelente} total={plants.length} color={C.green}/>
+            <DistBar label="REGULAR    50-69" count={dist.regular} total={plants.length} color={C.yellow}/>
+            <DistBar label="POBRE      30-49" count={dist.pobre} total={plants.length} color={C.orange}/>
+            <DistBar label="CRITICO     0-29" count={dist.critico} total={plants.length} color={C.red}/>
           </div>
+
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
             <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.12em',textTransform:'uppercase'}}>Instalaciones ({plants.length})</div>
-            <button onClick={fetchData} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:10}}>↻ ACTUALIZAR</button>
+            <button onClick={fetchData} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:10}}>ACTUALIZAR</button>
           </div>
+
           {plants.map((p,i)=>(
             <div key={p.id} onClick={()=>navigate(`/gemelo/${p.id}`)} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'12px 14px',marginBottom:8,cursor:'pointer',display:'flex',alignItems:'center',gap:12,animation:`fadeIn ${0.3+i*0.08}s ease`,transition:'border-color 0.15s'}}
               onMouseEnter={e=>e.currentTarget.style.borderColor=C.amber+'55'}
@@ -107,7 +121,7 @@ export default function DashboardScreen(){
                 <div style={{fontSize:13,fontWeight:600,marginBottom:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}</div>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
                   <Badge color={rciColor(p.rciAvg)} small>{rciLabel(p.rciAvg)}</Badge>
-                  {p.area_m2&&<span className="mono" style={{fontSize:9,color:C.muted}}>{p.area_m2.toLocaleString()} m²</span>}
+                  {p.area_m2&&<span className="mono" style={{fontSize:9,color:C.muted}}>{p.area_m2.toLocaleString()} m2</span>}
                   {p.membrane&&<span className="mono" style={{fontSize:9,color:C.muted}}>{p.membrane}</span>}
                 </div>
               </div>
