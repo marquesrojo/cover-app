@@ -11,6 +11,7 @@
     { "source": "/obras/parte/:id",     "destination": "/" },
     { "source": "/obras",               "destination": "/" },
     { "source": "/calendario",          "destination": "/" },
+    { "source": "/admin",               "destination": "/" },
     { "source": "/auth",                "destination": "/" }
   ]
 }
