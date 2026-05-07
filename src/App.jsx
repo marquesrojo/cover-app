@@ -9,6 +9,7 @@ import ObrasScreen from '@/modules/obras/ObrasScreen'
 import LegajoObra from '@/modules/obras/LegajoObra'
 import ParteDetalle from '@/modules/obras/ParteDetalle'
 import CalendarioScreen from '@/modules/calendario/CalendarioScreen'
+import AdminScreen from '@/modules/admin/AdminScreen'
 import { Spinner } from '@/components/ui'
 
 function PrivateRoute({ children }) {
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="obras"            element={<ObrasScreen />} />
         <Route path="obras/legajo/:id" element={<LegajoObra />} />
         <Route path="calendario"       element={<CalendarioScreen />} />
+        <Route path="admin"            element={<AdminScreen />} />
         <Route path="*"                element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
