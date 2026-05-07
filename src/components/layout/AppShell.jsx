@@ -19,7 +19,10 @@ function Header(){
         <div style={{width:1,height:16,background:C.border}}/>
         <span className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.1em'}}>GRUPO AISLAR</span>
       </div>
-      <div style={{display:'flex',alignItems:'center',gap:10}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        {(profile?.role==='cover_admin'||profile?.role==='admin')&&(
+          <a href="/admin" style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:6,padding:'5px 8px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:9,textDecoration:'none',letterSpacing:'0.06em'}}>⚙️ ADMIN</a>
+        )}
         {profile&&<span style={{fontSize:12,color:C.mutedLight}}>{profile.full_name?.split(' ')[0]}</span>}
         <button onClick={signOut} style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'5px 10px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:9,letterSpacing:'0.08em'}}>SALIR</button>
       </div>
