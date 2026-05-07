@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/db/supabase'
 import { useAuth } from '@/store/AuthContext'
 import { C } from '@/styles/tokens'
@@ -13,15 +12,14 @@ const SECTIONS=[
 
 const CONFIG_CATEGORIES=[
   {id:'membrane_types',label:'Tipos de membrana'},
-  {id:'inspection_types',label:'Tipos de inspección'},
+  {id:'inspection_types',label:'Tipos de inspeccion'},
   {id:'jsa_items',label:'Items JSA'},
-  {id:'work_types',label:'Tipos de trabajo (obras)'},
-  {id:'weather_types',label:'Condiciones climáticas'},
+  {id:'work_types',label:'Tipos de trabajo'},
+  {id:'weather_types',label:'Condiciones climaticas'},
   {id:'obra_types',label:'Tipos de obra'},
-  {id:'alerts',label:'Configuración de alertas'},
+  {id:'alerts',label:'Alertas'},
 ]
 
-// ── GESTIÓN DE ORGANIZACIONES ────────────────────────────────
 function OrgsPanel(){
   const {user}=useAuth()
   const [orgs,setOrgs]=useState([])
@@ -32,6 +30,7 @@ function OrgsPanel(){
   const [type,setType]=useState('')
   const [email,setEmail]=useState('')
   const [saving,setSaving]=useState(false)
+  const [error,setError]=useState('')
   const [selectedOrg,setSelectedOrg]=useState(null)
   const [orgPlants,setOrgPlants]=useState([])
 
@@ -40,8 +39,8 @@ function OrgsPanel(){
   async function fetchData(){
     setLoading(true)
     const [{data:o},{data:p}]=await Promise.all([
-      supabase.from('organizations').select('*, org_members(count)').order('name'),
-      supabase.from('plants').select('id,name,org_id').order('name'),
+      supabase.from('organizations').select('*').order('name'),
+      supabase.from('plants').select('id,name').order('name'),
     ])
     setOrgs(o||[])
     setPlants(p||[])
@@ -54,9 +53,10 @@ function OrgsPanel(){
   }
 
   async function createOrg(){
-    if(!name||!type)return
-    setSaving(true)
-    await supabase.from('organizations').insert({name,type,email,created_by:user.id})
+    if(!name||!type){setError('Nombre y tipo son obligatorios');return}
+    setSaving(true);setError('')
+    const {error:e}=await supabase.from('organizations').insert({name,type,email:email||null,created_by:user.id})
+    if(e){setError(e.message);setSaving(false);return}
     setName('');setType('');setEmail('');setShowNew(false)
     setSaving(false);fetchData()
   }
@@ -73,7 +73,7 @@ function OrgsPanel(){
 
   async function toggleOrg(org){
     await supabase.from('organizations').update({active:!org.active}).eq('id',org.id)
-    fetchData()
+    setOrgs(prev=>prev.map(o=>o.id===org.id?{...o,active:!org.active}:o))
   }
 
   if(loading)return<Spinner/>
@@ -87,14 +87,22 @@ function OrgsPanel(){
 
       {showNew&&(
         <div style={{background:C.surface2,border:`1px solid ${C.amber}44`,borderRadius:8,padding:14,marginBottom:14,animation:'slideUp 0.25s ease'}}>
-          <div className="mono" style={{fontSize:11,color:C.amber,marginBottom:12,textTransform:'uppercase'}}>Nueva Organización</div>
+          <div className="mono" style={{fontSize:11,color:C.amber,marginBottom:12,textTransform:'uppercase'}}>Nueva Organizacion</div>
+          {error&&<AlertBanner color={C.red} icon="!">{error}</AlertBanner>}
           <Input label="Nombre" value={name} onChange={setName} placeholder="Ej: Industrial SA" required/>
-          <Select label="Tipo" value={type} onChange={setType} options={[{value:'owner',label:'Propietario (dueño de edificios)'},{value:'contractor',label:'Contratista (hace trabajos)'}]} required/>
+          <Select label="Tipo" value={type} onChange={setType} options={[{value:'owner',label:'Propietario (dueno de edificios)'},{value:'contractor',label:'Contratista (hace trabajos)'}]} required/>
           <Input label="Email de contacto" type="email" value={email} onChange={setEmail} placeholder="contacto@empresa.com"/>
           <div style={{display:'flex',gap:8}}>
-            <Btn outline onClick={()=>setShowNew(false)}>CANCELAR</Btn>
+            <Btn outline onClick={()=>{setShowNew(false);setError('')}}>CANCELAR</Btn>
             <Btn onClick={createOrg} disabled={!name||!type||saving}>{saving?'CREANDO...':'CREAR'}</Btn>
           </div>
+        </div>
+      )}
+
+      {orgs.length===0&&!loading&&(
+        <div style={{textAlign:'center',padding:'40px 0',color:C.muted}}>
+          <div style={{fontSize:32,marginBottom:12}}>🏢</div>
+          <div style={{fontSize:14}}>No hay organizaciones</div>
         </div>
       )}
 
@@ -102,19 +110,18 @@ function OrgsPanel(){
         <div key={org.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
             <div>
-              <div style={{fontSize:14,fontWeight:600,marginBottom:3}}>{org.name}</div>
+              <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>{org.name}</div>
               <div style={{display:'flex',gap:6}}>
                 <Badge color={org.type==='owner'?C.blue:C.amber} small>{org.type==='owner'?'PROPIETARIO':'CONTRATISTA'}</Badge>
                 <Badge color={org.active?C.green:C.muted} small>{org.active?'ACTIVO':'INACTIVO'}</Badge>
               </div>
             </div>
-            <button onClick={()=>toggleOrg(org)} style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 8px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:9}}>
+            <button onClick={()=>toggleOrg(org)} style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 8px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>
               {org.active?'DESACTIVAR':'ACTIVAR'}
             </button>
           </div>
           {org.email&&<div style={{fontSize:11,color:C.muted,marginBottom:8}}>{org.email}</div>}
 
-          {/* Acceso a plantas */}
           <div style={{marginTop:10}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
               <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>Plantas con acceso</div>
@@ -125,7 +132,6 @@ function OrgsPanel(){
                 {selectedOrg===org.id?'CERRAR':'GESTIONAR'}
               </button>
             </div>
-
             {selectedOrg===org.id&&(
               <div style={{animation:'fadeIn 0.2s ease'}}>
                 {orgPlants.length>0&&(
@@ -138,6 +144,7 @@ function OrgsPanel(){
                     ))}
                   </div>
                 )}
+                {orgPlants.length===0&&<div style={{fontSize:12,color:C.muted,marginBottom:8}}>Sin plantas asignadas</div>}
                 <div className="mono" style={{fontSize:9,color:C.muted,marginBottom:6,textTransform:'uppercase'}}>Agregar planta:</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                   {plants.filter(p=>!orgPlants.find(ap=>ap.plant_id===p.id)).map(p=>(
@@ -155,7 +162,6 @@ function OrgsPanel(){
   )
 }
 
-// ── GESTIÓN DE USUARIOS ───────────────────────────────────────
 function UsersPanel(){
   const [users,setUsers]=useState([])
   const [orgs,setOrgs]=useState([])
@@ -167,7 +173,7 @@ function UsersPanel(){
   async function fetchData(){
     setLoading(true)
     const [{data:u},{data:o}]=await Promise.all([
-      supabase.from('profiles').select('*, org_members(role, organizations(name,type))').order('full_name'),
+      supabase.from('profiles').select('*').order('full_name'),
       supabase.from('organizations').select('id,name,type').order('name'),
     ])
     setUsers(u||[])
@@ -177,7 +183,7 @@ function UsersPanel(){
 
   async function changeRole(userId,role){
     await supabase.from('profiles').update({role}).eq('id',userId)
-    fetchData()
+    setUsers(prev=>prev.map(u=>u.id===userId?{...u,role}:u))
   }
 
   async function addToOrg(userId,orgId){
@@ -185,18 +191,14 @@ function UsersPanel(){
     fetchData()
   }
 
-  async function removeFromOrg(userId,orgId){
-    await supabase.from('org_members').delete().eq('user_id',userId).eq('org_id',orgId)
-    fetchData()
-  }
-
   if(loading)return<Spinner/>
 
-  const filtered=users.filter(u=>u.full_name?.toLowerCase().includes(search.toLowerCase())||u.id.includes(search))
+  const filtered=search?users.filter(u=>u.full_name?.toLowerCase().includes(search.toLowerCase())):users
 
   return(
     <div>
       <Input label="Buscar usuario" value={search} onChange={setSearch} placeholder="Nombre..."/>
+      {filtered.length===0&&<div style={{textAlign:'center',padding:'40px 0',color:C.muted,fontSize:13}}>No hay usuarios</div>}
       {filtered.map(u=>(
         <div key={u.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
@@ -212,28 +214,13 @@ function UsersPanel(){
               <option value="cover_admin">COVER ADMIN</option>
             </select>
           </div>
-
-          {/* Organizaciones del usuario */}
           <div>
-            <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Organizaciones</div>
-            {(u.org_members||[]).map(om=>(
-              <div key={om.organizations?.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0'}}>
-                <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                  <span style={{fontSize:12}}>{om.organizations?.name}</span>
-                  <Badge color={om.organizations?.type==='owner'?C.blue:C.amber} small>{om.role}</Badge>
-                </div>
-                <button onClick={()=>removeFromOrg(u.id,orgs.find(o=>o.name===om.organizations?.name)?.id)} style={{background:'none',border:'none',color:C.red,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>✕</button>
-              </div>
-            ))}
-            <div style={{marginTop:8}}>
-              <select onChange={e=>{if(e.target.value)addToOrg(u.id,e.target.value);e.target.value=''}}
-                style={{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'6px 10px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:10,outline:'none'}}>
-                <option value="">+ Agregar a organización...</option>
-                {orgs.filter(o=>!(u.org_members||[]).find(om=>om.organizations?.name===o.name)).map(o=>(
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </select>
-            </div>
+            <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Agregar a organizacion:</div>
+            <select onChange={e=>{if(e.target.value){addToOrg(u.id,e.target.value);e.target.value=''}}}
+              style={{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'6px 10px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:10,outline:'none'}}>
+              <option value="">Seleccionar organizacion...</option>
+              {orgs.map(o=>(<option key={o.id} value={o.id}>{o.name} ({o.type})</option>))}
+            </select>
           </div>
         </div>
       ))}
@@ -241,7 +228,6 @@ function UsersPanel(){
   )
 }
 
-// ── CONFIGURACIÓN DE PLATAFORMA ───────────────────────────────
 function ConfigPanel(){
   const [configs,setConfigs]=useState([])
   const [loading,setLoading]=useState(true)
@@ -270,21 +256,16 @@ function ConfigPanel(){
 
   async function toggleActive(item){
     await supabase.from('platform_config').update({active:!item.active}).eq('id',item.id)
-    fetchConfig()
+    setConfigs(prev=>prev.map(c=>c.id===item.id?{...c,active:!item.active}:c))
   }
 
   async function addItem(){
     if(!newValue)return
     setSaving(true)
-    const key=newValue.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')
+    const key=newValue.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+'_'+Date.now()
     const maxOrder=configs.filter(c=>c.category===activeCategory).reduce((m,c)=>Math.max(m,c.order_index),0)
     await supabase.from('platform_config').insert({category:activeCategory,key,value:newValue,label:newLabel||newValue,order_index:maxOrder+1})
     setNewValue('');setNewLabel('');setSaving(false);fetchConfig()
-  }
-
-  async function updateAlertValue(id,value){
-    await supabase.from('platform_config').update({value}).eq('id',id)
-    fetchConfig()
   }
 
   if(loading)return<Spinner/>
@@ -294,7 +275,6 @@ function ConfigPanel(){
 
   return(
     <div>
-      {/* Selector de categoría */}
       <div style={{display:'flex',gap:6,overflowX:'auto',marginBottom:16,paddingBottom:4}}>
         {CONFIG_CATEGORIES.map(cat=>(
           <button key={cat.id} onClick={()=>setActiveCategory(cat.id)} style={{background:activeCategory===cat.id?C.amberDim:C.surface2,border:`1px solid ${activeCategory===cat.id?C.amber:C.border}`,borderRadius:6,padding:'6px 12px',cursor:'pointer',whiteSpace:'nowrap',fontFamily:'IBM Plex Mono',fontSize:9,color:activeCategory===cat.id?C.amber:C.muted,letterSpacing:'0.08em',transition:'all 0.15s'}}>
@@ -303,13 +283,14 @@ function ConfigPanel(){
         ))}
       </div>
 
-      {/* Items de la categoría */}
+      {categoryItems.length===0&&<div style={{textAlign:'center',padding:'20px 0',color:C.muted,fontSize:13}}>No hay items en esta categoria</div>}
+
       {categoryItems.map(item=>(
-        <div key={item.id} style={{background:C.surface2,border:`1px solid ${item.active?C.border:C.border+'44'}`,borderRadius:8,padding:12,marginBottom:6,opacity:item.active?1:0.5}}>
+        <div key={item.id} style={{background:C.surface2,border:`1px solid ${item.active?C.border:C.border+'44'}`,borderRadius:8,padding:12,marginBottom:6,opacity:item.active?1:0.6}}>
           {editingId===item.id?(
             <div>
               <Input label="Valor" value={editValue} onChange={setEditValue}/>
-              {!isAlerts&&<Input label="Etiqueta (descripción)" value={editLabel} onChange={setEditLabel}/>}
+              {!isAlerts&&<Input label="Etiqueta" value={editLabel} onChange={setEditLabel}/>}
               <div style={{display:'flex',gap:8}}>
                 <Btn small onClick={()=>saveEdit(item.id)} disabled={saving}>{saving?'...':'GUARDAR'}</Btn>
                 <Btn small outline onClick={()=>setEditingId(null)}>CANCELAR</Btn>
@@ -320,7 +301,6 @@ function ConfigPanel(){
               <div>
                 <div style={{fontSize:13,fontWeight:600}}>{item.value}</div>
                 {item.label&&item.label!==item.value&&<div style={{fontSize:11,color:C.muted}}>{item.label}</div>}
-                {isAlerts&&<div className="mono" style={{fontSize:10,color:C.amber}}>{item.value} {item.key.includes('days')?'días':''}</div>}
               </div>
               <div style={{display:'flex',gap:6}}>
                 <button onClick={()=>{setEditingId(item.id);setEditValue(item.value);setEditLabel(item.label||'')}}
@@ -335,12 +315,11 @@ function ConfigPanel(){
         </div>
       ))}
 
-      {/* Agregar nuevo item */}
       {!isAlerts&&(
         <div style={{background:C.surface2,border:`1.5px dashed ${C.border}`,borderRadius:8,padding:14,marginTop:12}}>
           <div className="mono" style={{fontSize:10,color:C.muted,textTransform:'uppercase',marginBottom:10}}>Agregar nuevo</div>
           <Input label="Valor" value={newValue} onChange={setNewValue} placeholder="Ej: Bituminosa"/>
-          <Input label="Descripción (opcional)" value={newLabel} onChange={setNewLabel} placeholder="Descripción larga..."/>
+          <Input label="Descripcion (opcional)" value={newLabel} onChange={setNewLabel} placeholder="Descripcion larga..."/>
           <Btn small onClick={addItem} disabled={!newValue||saving}>{saving?'...':'+ AGREGAR'}</Btn>
         </div>
       )}
@@ -348,11 +327,11 @@ function ConfigPanel(){
   )
 }
 
-// ── PANTALLA PRINCIPAL ADMIN ──────────────────────────────────
 export default function AdminScreen(){
   const {profile}=useAuth()
-  const navigate=useNavigate()
   const [section,setSection]=useState('orgs')
+
+  if(!profile)return<Spinner/>
 
   if(profile?.role!=='cover_admin'&&profile?.role!=='admin'){
     return(
@@ -365,13 +344,11 @@ export default function AdminScreen(){
 
   return(
     <div style={{padding:'0 0 80px',animation:'fadeIn 0.3s ease'}}>
-      {/* Header */}
       <div style={{padding:'16px 16px 0',marginBottom:14}}>
         <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>PLATAFORMA</div>
         <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Panel de Admin</div>
       </div>
 
-      {/* Tabs de sección */}
       <div style={{display:'flex',gap:0,background:C.surface2,margin:'0 16px 16px',borderRadius:8,padding:4}}>
         {SECTIONS.map(s=>(
           <button key={s.id} onClick={()=>setSection(s.id)} style={{flex:1,background:section===s.id?C.amber:'transparent',color:section===s.id?C.bg:C.muted,border:'none',borderRadius:6,padding:'8px 4px',fontFamily:'IBM Plex Mono',fontSize:9,fontWeight:700,transition:'all 0.2s',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
