@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/store/AuthContext'
 import AppShell from '@/components/layout/AppShell'
 import AuthScreen from '@/modules/auth/AuthScreen'
+import OnboardingScreen from '@/modules/auth/OnboardingScreen'
 import DashboardScreen from '@/modules/dashboard/DashboardScreen'
 import GemelScreen from '@/modules/gemelo/GemelScreen'
 import InspeccionScreen, { InspectionDetail, InspeccionList } from '@/modules/inspeccion/InspeccionScreen'
@@ -13,9 +14,17 @@ import AdminScreen from '@/modules/admin/AdminScreen'
 import { Spinner } from '@/components/ui'
 
 function PrivateRoute({ children }) {
-  const { user, loading } = useAuth()
+  const { user, loading, profile } = useAuth()
   if (loading) return <Spinner />
   if (!user) return <Navigate to="/auth" replace />
+  if (
+    profile &&
+    !profile.onboarding_completed &&
+    profile.role !== 'cover_admin' &&
+    profile.role !== 'admin'
+  ) {
+    return <OnboardingScreen onComplete={() => window.location.reload()} />
+  }
   return children
 }
 
