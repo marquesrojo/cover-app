@@ -78,7 +78,7 @@ function MultiSectorModal({count,onClose,onSave}){
           <button onClick={onClose} style={{flex:1,background:'none',border:`1px solid ${C.border}`,borderRadius:10,padding:'14px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:12}}>CANCELAR</button>
           <button onClick={async()=>{setSaving(true);await onSave(rci,notes);setSaving(false);onClose()}}
             style={{flex:2,background:C.amber,color:C.bg,border:'none',borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700}}>
-            {saving?'GUARDANDO...`:`APLICAR A ${count} SECTORES'}
+            {saving?'GUARDANDO...':`APLICAR A ${count} SECTORES`}
           </button>
         </div>
       </div>
