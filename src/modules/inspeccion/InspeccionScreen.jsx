@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import { supabase } from '@/db/supabase'
 import { useAuth } from '@/store/AuthContext'
-import { C, rciColor, rciLabel, rciRec } from '@/styles/tokens'
+import { C, rciColor, rciLabel } from '@/styles/tokens'
 import { Badge, RciGauge, Spinner, Btn, Select, Toggle, SeverityChips, PhotoUpload, AlertBanner, Input, TextArea } from '@/components/ui'
 
-const JSA_LABELS=['EPP completo (casco, arnés, línea de vida)','Revisión estructural antes de acceso','Comunicación con supervisor aprobada','Condiciones climáticas verificadas','Señalización del área activa','Punto de anclaje certificado confirmado']
-const STEPS=[{id:1,label:'IDENTIFICACIÓN'},{id:2,label:'JSA'},{id:3,label:'MEMBRANA'},{id:4,label:'UNIONES'},{id:5,label:'DRENAJE'},{id:6,label:'EQUIPOS'},{id:7,label:'RCI FINAL'}]
-const SEV={critico:{color:C.red,label:'CRÍTICO'},moderado:{color:C.orange,label:'MODERADO'},leve:{color:C.yellow,label:'LEVE'}}
+const JSA_LABELS=['EPP completo (casco, arnes, linea de vida)','Revision estructural antes de acceso','Comunicacion con supervisor aprobada','Condiciones climaticas verificadas','Senalizacion del area activa','Punto de anclaje certificado confirmado']
+const STEPS=[{id:1,label:'IDENTIFICACION'},{id:2,label:'JSA'},{id:3,label:'MEMBRANA'},{id:4,label:'UNIONES'},{id:5,label:'DRENAJE'},{id:6,label:'EQUIPOS'},{id:7,label:'RCI FINAL'}]
+const SEV={critico:{color:C.red,label:'CRITICO'},moderado:{color:C.orange,label:'MODERADO'},leve:{color:C.yellow,label:'LEVE'}}
 const STAT={abierto:{color:C.red,label:'ABIERTO'},en_proceso:{color:C.blue,label:'EN PROCESO'},resuelto:{color:C.green,label:'RESUELTO'}}
 
 async function uploadPhoto(file,bucket,path){
@@ -26,7 +26,7 @@ function StepBar({step}){
           return(
             <div key={s.id} style={{display:'flex',alignItems:'center'}}>
               <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'0 8px 8px',borderBottom:active?`2px solid ${C.amber}`:'2px solid transparent'}}>
-                <span style={{fontSize:14,color:done?C.green:active?C.amber:C.muted}}>{done?'✓':s.id}</span>
+                <span style={{fontSize:14,color:done?C.green:active?C.amber:C.muted}}>{done?'v':s.id}</span>
                 <span className="mono" style={{fontSize:7,color:active?C.amber:C.muted,letterSpacing:'0.06em'}}>{s.label}</span>
               </div>
               {i<6&&<div style={{width:6,height:1,background:C.border,flexShrink:0}}/>}
@@ -59,11 +59,11 @@ export function InspectionDetail(){
     load()
   },[id])
   if(loading)return<Spinner/>
-  if(!insp)return(<div style={{padding:24}}><button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button><div style={{color:C.muted,textAlign:'center',padding:40}}>Inspección no encontrada</div></div>)
+  if(!insp)return(<div style={{padding:24}}><button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button><div style={{color:C.muted,textAlign:'center',padding:40}}>Inspeccion no encontrada</div></div>)
   const color=rciColor(insp.rci||0)
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
-      <button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>← VOLVER</button>
+      <button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button>
       <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:20}}>
         <RciGauge value={insp.rci||0} size={80}/>
         <div>
@@ -76,16 +76,17 @@ export function InspectionDetail(){
         {[['Inspector',insp.profiles?.full_name||'—'],['Membrana',insp.membrane||'—'],['Tipo',insp.type||'—'],['Fecha',new Date(insp.created_at).toLocaleString('es-AR')]].map(([k,v])=>(<div key={k} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:`1px solid ${C.border}`}}><span style={{fontSize:12,color:C.muted}}>{k}</span><span style={{fontSize:12,color:C.text,fontWeight:600}}>{v}</span></div>))}
       </div>
       {photos.length>0&&(<div style={{marginBottom:12}}><div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',marginBottom:10,textTransform:'uppercase'}}>Fotos ({photos.length})</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>{photos.map(ph=>(<div key={ph.id}><img src={ph.public_url} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}}/><div className="mono" style={{fontSize:8,color:C.muted,marginTop:4,textTransform:'uppercase'}}>{ph.step}</div></div>))}</div></div>)}
-      <div style={{background:color+'11',border:`1px solid ${color}33`,borderRadius:8,padding:14,marginBottom:12}}>
-        <div className="mono" style={{fontSize:10,color,letterSpacing:'0.1em',marginBottom:6,textTransform:'uppercase'}}>Recomendación</div>
-        <div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{rciRec(insp.rci||0)}</div>
-      </div>
+      {insp.notes&&(
+        <div style={{background:color+'11',border:`1px solid ${color}33`,borderRadius:8,padding:14,marginBottom:12}}>
+          <div className="mono" style={{fontSize:10,color,letterSpacing:'0.1em',marginBottom:6,textTransform:'uppercase'}}>Notas del inspector</div>
+          <div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{insp.notes}</div>
+        </div>
+      )}
       <div style={{textAlign:'center'}}><div className="mono" style={{fontSize:9,color:C.muted,wordBreak:'break-all'}}>{window.location.href}</div></div>
     </div>
   )
 }
 
-// ── MODAL NUEVO TICKET ────────────────────────────────────────
 function NuevoTicketModal({onClose,onCreated}){
   const {user}=useAuth()
   const [plants,setPlants]=useState([])
@@ -123,10 +124,10 @@ function NuevoTicketModal({onClose,onCreated}){
       <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px 12px 0 0',padding:20,maxHeight:'90vh',overflowY:'auto',animation:'slideUp 0.25s ease'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
           <span className="mono" style={{fontSize:12,fontWeight:700,color:C.amber}}>NUEVO TICKET</span>
-          <button onClick={onClose} style={{background:'none',border:'none',color:C.muted,fontSize:18}}>✕</button>
+          <button onClick={onClose} style={{background:'none',border:'none',color:C.muted,fontSize:18}}>x</button>
         </div>
-        <Select label="Planta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/>
-        <Input label="Título del incidente" value={title} onChange={setTitle} placeholder="Ej: Filtración activa en sector B3" required/>
+        <Select label="Cubierta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/>
+        <Input label="Titulo del incidente" value={title} onChange={setTitle} placeholder="Ej: Filtracion activa en sector B3" required/>
         <div style={{marginBottom:14}}>
           <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Severidad *</div>
           <div style={{display:'flex',gap:6}}>
@@ -135,8 +136,8 @@ function NuevoTicketModal({onClose,onCreated}){
             ))}
           </div>
         </div>
-        {severity==='critico'&&<AlertBanner color={C.red} icon="🚨">Inicia contador SLA de 30 días para notificación al proveedor.</AlertBanner>}
-        <TextArea label="Descripción" value={desc} onChange={setDesc} placeholder="Describí el incidente..." rows={3}/>
+        {severity==='critico'&&<AlertBanner color={C.red} icon="!">Inicia contador SLA de 30 dias para notificacion al proveedor.</AlertBanner>}
+        <TextArea label="Descripcion" value={desc} onChange={setDesc} placeholder="Describe el incidente..." rows={3}/>
         <Input label="Sector / Zona (opcional)" value={sector} onChange={setSector} placeholder="Ej: Sector B-3"/>
         <PhotoUpload label="Foto del incidente" value={photo} onChange={setPhoto}/>
         <div style={{display:'flex',gap:8}}>
@@ -150,7 +151,6 @@ function NuevoTicketModal({onClose,onCreated}){
   )
 }
 
-// ── MODAL EDITAR TICKET ───────────────────────────────────────
 function EditTicketModal({ticket,onClose,onSaved}){
   const [status,setStatus]=useState(ticket.status)
   const [severity,setSeverity]=useState(ticket.severity)
@@ -171,10 +171,10 @@ function EditTicketModal({ticket,onClose,onSaved}){
       <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px 12px 0 0',padding:20,maxHeight:'90vh',overflowY:'auto',animation:'slideUp 0.25s ease'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
           <span className="mono" style={{fontSize:12,fontWeight:700,color:C.amber}}>EDITAR TICKET</span>
-          <button onClick={onClose} style={{background:'none',border:'none',color:C.muted,fontSize:18}}>✕</button>
+          <button onClick={onClose} style={{background:'none',border:'none',color:C.muted,fontSize:18}}>x</button>
         </div>
-        <Input label="Título" value={title} onChange={setTitle}/>
-        <TextArea label="Descripción" value={desc} onChange={setDesc} rows={3}/>
+        <Input label="Titulo" value={title} onChange={setTitle}/>
+        <TextArea label="Descripcion" value={desc} onChange={setDesc} rows={3}/>
         <div style={{marginBottom:14}}>
           <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Severidad</div>
           <div style={{display:'flex',gap:6}}>
@@ -187,14 +187,13 @@ function EditTicketModal({ticket,onClose,onSaved}){
             {Object.entries(STAT).map(([k,v])=>(<button key={k} onClick={()=>setStatus(k)} style={{background:status===k?v.color+'22':C.surface2,border:`1.5px solid ${status===k?v.color:C.border}`,borderRadius:8,padding:'12px 14px',textAlign:'left',color:status===k?v.color:C.muted,fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,minHeight:44,display:'flex',alignItems:'center',gap:8}}><div style={{width:8,height:8,borderRadius:'50%',background:status===k?v.color:C.muted}}/>{v.label}</button>))}
           </div>
         </div>
-        {status==='resuelto'&&<TextArea label="Notas de resolución" value={resolution} onChange={setResolution} placeholder="Cómo se resolvió..." rows={3}/>}
+        {status==='resuelto'&&<TextArea label="Notas de resolucion" value={resolution} onChange={setResolution} placeholder="Como se resolvio..." rows={3}/>}
         <Btn full onClick={save} disabled={saving}>{saving?'GUARDANDO...':'GUARDAR CAMBIOS'}</Btn>
       </div>
     </div>
   )
 }
 
-// ── LISTA GESTIÓN (Inspecciones + Tickets) ────────────────────
 export function InspeccionList(){
   const navigate=useNavigate()
   const {user}=useAuth()
@@ -226,21 +225,18 @@ export function InspeccionList(){
 
   return(
     <div style={{padding:'0 0 80px',animation:'fadeIn 0.3s ease'}}>
-      {/* Header */}
       <div style={{padding:'16px 16px 0'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}}>
           <div>
             <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>REGISTRO</div>
-            <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Gestión</div>
+            <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Gestion</div>
           </div>
           {tab==='inspecciones'?(
-            <button onClick={()=>navigate('/inspeccion/nueva')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'10px 14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,minHeight:44}}>+ INSPECCIÓN</button>
+            <button onClick={()=>navigate('/inspeccion/nueva')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'10px 14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,minHeight:44}}>+ INSPECCION</button>
           ):(
             <button onClick={()=>setShowNuevoTicket(true)} style={{background:C.red,color:'#fff',border:'none',borderRadius:8,padding:'10px 14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,minHeight:44}}>+ TICKET</button>
           )}
         </div>
-
-        {/* Sub-tabs */}
         <div style={{display:'flex',gap:0,background:C.surface2,borderRadius:8,padding:4,marginBottom:16}}>
           {[['inspecciones',`Inspecciones (${inspections.length})`],['tickets',`Tickets (${tickets.filter(t=>t.status!=='resuelto').length} activos)`]].map(([k,l])=>(
             <button key={k} onClick={()=>setTab(k)} style={{flex:1,background:tab===k?C.amber:'transparent',color:tab===k?C.bg:C.muted,border:'none',borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,transition:'all 0.2s'}}>{l}</button>
@@ -248,14 +244,13 @@ export function InspeccionList(){
         </div>
       </div>
 
-      {/* INSPECCIONES */}
       {tab==='inspecciones'&&(
         <div style={{padding:'0 16px'}}>
           {inspections.length===0?(
             <div style={{textAlign:'center',padding:'40px 0'}}>
               <div style={{fontSize:32,marginBottom:12}}>📋</div>
               <div style={{fontSize:14,color:C.muted,marginBottom:16}}>No hay inspecciones realizadas</div>
-              <button onClick={()=>navigate('/inspeccion/nueva')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700}}>+ INICIAR PRIMERA INSPECCIÓN</button>
+              <button onClick={()=>navigate('/inspeccion/nueva')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700}}>+ INICIAR PRIMERA INSPECCION</button>
             </div>
           ):(
             inspections.map((insp,i)=>{
@@ -282,7 +277,6 @@ export function InspeccionList(){
         </div>
       )}
 
-      {/* TICKETS */}
       {tab==='tickets'&&(
         <div style={{padding:'0 16px'}}>
           <div style={{display:'flex',gap:6,marginBottom:14}}>
@@ -303,7 +297,7 @@ export function InspeccionList(){
                   <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
                     <Badge color={sev.color} small>{sev.label}</Badge>
                     <Badge color={stat.color} small>{stat.label}</Badge>
-                    {urgent&&<Badge color={C.red}>⚠ SLA D+{daysOpen}</Badge>}
+                    {urgent&&<Badge color={C.red}>SLA D+{daysOpen}</Badge>}
                   </div>
                   <button onClick={()=>setEditTicket(t)} style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'5px 10px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:9,letterSpacing:'0.08em'}}>EDITAR</button>
                 </div>
@@ -316,7 +310,7 @@ export function InspeccionList(){
                 </div>
                 {t.resolution_notes&&t.status==='resuelto'&&(
                   <div style={{background:C.green+'11',border:`1px solid ${C.green}33`,borderRadius:6,padding:'8px 10px',marginTop:8}}>
-                    <span style={{fontSize:11,color:C.green}}>✓ {t.resolution_notes}</span>
+                    <span style={{fontSize:11,color:C.green}}>v {t.resolution_notes}</span>
                   </div>
                 )}
               </div>
@@ -331,7 +325,6 @@ export function InspeccionList(){
   )
 }
 
-// ── WIZARD INSPECCIÓN ─────────────────────────────────────────
 export default function InspeccionScreen(){
   const navigate=useNavigate()
   const [params]=useSearchParams()
@@ -350,6 +343,7 @@ export default function InspeccionScreen(){
   const [drainPhoto,setDrainPhoto]=useState(null)
   const [equip,setEquip]=useState([false,false,false])
   const [equipPhoto,setEquipPhoto]=useState(null)
+  const [inspNotes,setInspNotes]=useState('')
   const [saving,setSaving]=useState(false)
   const [savedId,setSavedId]=useState(null)
 
@@ -378,7 +372,16 @@ export default function InspeccionScreen(){
   const save=async()=>{
     setSaving(true)
     const rci=calcRCI()
-    const {data:insp,error}=await supabase.from('inspections').insert({plant_id:plantId,inspector_id:user.id,type,membrane,status:'completed',rci,jsa_epp:jsa[0],jsa_estructura:jsa[1],jsa_supervisor:jsa[2],jsa_clima:jsa[3],jsa_senalizacion:jsa[4],jsa_anclaje:jsa[5],memb_cuarteamiento:memb.cuarteamiento,memb_ampollas:memb.ampollas,memb_granulos:memb.granulos,memb_perforaciones:memb.perforaciones,memb_uv_deg:memb.uvDeg,union_viento:uniones.viento,union_adhesiva:uniones.adhesiva,union_termico:uniones.termico,drain_embudo:drain[0],drain_agua:drain[1],drain_bajante:drain[2],equip_hvac:equip[0],equip_sellos:equip[1],equip_escorrentia:equip[2],completed_at:new Date().toISOString()}).select().single()
+    const {data:insp,error}=await supabase.from('inspections').insert({
+      plant_id:plantId,inspector_id:user.id,type,membrane,status:'completed',rci,
+      notes:inspNotes||null,
+      jsa_epp:jsa[0],jsa_estructura:jsa[1],jsa_supervisor:jsa[2],jsa_clima:jsa[3],jsa_senalizacion:jsa[4],jsa_anclaje:jsa[5],
+      memb_cuarteamiento:memb.cuarteamiento,memb_ampollas:memb.ampollas,memb_granulos:memb.granulos,memb_perforaciones:memb.perforaciones,memb_uv_deg:memb.uvDeg,
+      union_viento:uniones.viento,union_adhesiva:uniones.adhesiva,union_termico:uniones.termico,
+      drain_embudo:drain[0],drain_agua:drain[1],drain_bajante:drain[2],
+      equip_hvac:equip[0],equip_sellos:equip[1],equip_escorrentia:equip[2],
+      completed_at:new Date().toISOString()
+    }).select().single()
     if(error){setSaving(false);alert('Error: '+error.message);return}
     for(const {photo,step:s} of [{photo:membPhoto,step:'membrana'},{photo:unionPhoto,step:'uniones'},{photo:drainPhoto,step:'drenaje'},{photo:equipPhoto,step:'equipos'}].filter(x=>x.photo?.file)){
       try{const path=`${insp.id}/${s}-${Date.now()}.jpg`;const url=await uploadPhoto(photo.file,'inspection-photos',path);await supabase.from('inspection_photos').insert({inspection_id:insp.id,step:s,storage_path:path,public_url:url,lat:photo.lat,lng:photo.lng,uploaded_by:user.id})}catch(e){console.error(e)}
@@ -388,21 +391,115 @@ export default function InspeccionScreen(){
 
   if(savedId){
     const rci=calcRCI()
-    return(<div style={{padding:'24px 16px 80px',textAlign:'center',animation:'fadeIn 0.3s ease'}}><div style={{display:'inline-block',marginBottom:12}}><RciGauge value={rci} size={120}/></div><div style={{marginBottom:8}}><Badge color={rciColor(rci)}>{rciLabel(rci)}</Badge></div><div style={{fontSize:13,color:C.muted,maxWidth:280,margin:'0 auto 20px',lineHeight:1.6}}>{rciRec(rci)}</div><div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:16,textAlign:'left'}}><div className="mono" style={{fontSize:10,color:C.amber,marginBottom:8}}>INSPECCIÓN GUARDADA ✓</div><div className="mono" style={{fontSize:10,color:C.text,wordBreak:'break-all',background:C.bg,padding:'8px 10px',borderRadius:6}}>{window.location.origin}/inspeccion/{savedId}</div></div><Btn full onClick={()=>navigate(`/inspeccion/${savedId}`)}>VER INSPECCIÓN COMPLETA →</Btn><div style={{marginTop:12}}><Btn full outline onClick={()=>navigate('/inspeccion/lista')}>VER TODAS LAS INSPECCIONES</Btn></div></div>)
+    return(
+      <div style={{padding:'24px 16px 80px',textAlign:'center',animation:'fadeIn 0.3s ease'}}>
+        <div style={{display:'inline-block',marginBottom:12}}><RciGauge value={rci} size={120}/></div>
+        <div style={{marginBottom:16}}><Badge color={rciColor(rci)}>{rciLabel(rci)}</Badge></div>
+        <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:16,textAlign:'left'}}>
+          <div className="mono" style={{fontSize:10,color:C.amber,marginBottom:8}}>INSPECCION GUARDADA v</div>
+          <div className="mono" style={{fontSize:10,color:C.text,wordBreak:'break-all',background:C.bg,padding:'8px 10px',borderRadius:6}}>{window.location.origin}/inspeccion/{savedId}</div>
+        </div>
+        <Btn full onClick={()=>navigate(`/inspeccion/${savedId}`)}>VER INSPECCION COMPLETA</Btn>
+        <div style={{marginTop:12}}><Btn full outline onClick={()=>navigate('/inspeccion/lista')}>VER TODAS LAS INSPECCIONES</Btn></div>
+      </div>
+    )
   }
 
   return(
     <div style={{animation:'fadeIn 0.3s ease'}}>
       <StepBar step={step}/>
       <div style={{padding:'16px 16px 100px'}}>
-        {step===1&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}><button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,padding:0}}>← VOLVER</button><div style={{fontSize:16,fontWeight:600}}>Identificación del Activo</div></div><Select label="Planta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/><Select label="Tipo de inspección" value={type} onChange={setType} options={['Primavera','Otoño','Post-Evento','Extraordinaria']} required/><Select label="Membrana" value={membrane} onChange={setMembrane} options={['TPO','EPDM','PVC','Asfáltica']} required/></div>)}
-        {step===2&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{fontSize:16,fontWeight:600,marginBottom:4}}>JSA — Análisis de Seguridad</div><AlertBanner color={C.amber} icon="⚠">Ley 19.587 / Decreto 911/96 — Todos los controles son obligatorios</AlertBanner>{JSA_LABELS.map((l,i)=><Toggle key={i} label={l} value={jsa[i]} onChange={v=>{const a=[...jsa];a[i]=v;setJsa(a)}}/>)}<div className="mono" style={{fontSize:10,color:jsa.every(Boolean)?C.green:C.red,marginTop:12}}>{jsa.every(Boolean)?'✓ TODOS LOS CONTROLES OK':`✗ ${jsa.filter(Boolean).length}/6 COMPLETADOS`}</div></div>)}
-        {step===3&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{fontSize:16,fontWeight:600,marginBottom:16}}>Superficie de Membrana</div>{[['Cuarteamiento superficial','cuarteamiento'],['Ampollas (blistering)','ampollas'],['Pérdida de gránulos','granulos'],['Perforaciones / punzocortantes','perforaciones'],['Degradación UV','uvDeg']].map(([label,key])=>(<div key={key} style={{marginBottom:16}}><div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{label}</div><SeverityChips value={memb[key]} onChange={v=>setMemb(p=>({...p,[key]:v}))}/></div>))}<PhotoUpload label="Foto de membrana (obligatorio)" value={membPhoto} onChange={setMembPhoto}/></div>)}
-        {step===4&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{fontSize:16,fontWeight:600,marginBottom:16}}>Uniones y Costuras</div>{[['Levantamiento por viento','viento'],['Separación adhesiva','adhesiva'],['Estrés térmico','termico']].map(([label,key])=>(<div key={key} style={{marginBottom:16}}><div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{label}</div><SeverityChips value={uniones[key]} onChange={v=>setUniones(p=>({...p,[key]:v}))}/></div>))}<PhotoUpload label="Foto de costura crítica" value={unionPhoto} onChange={setUnionPhoto}/></div>)}
-        {step===5&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{fontSize:16,fontWeight:600,marginBottom:4}}>Sistema de Drenaje</div><AlertBanner color={C.blue} icon="ℹ">Agua estancada +48hs puede invalidar garantía de membrana.</AlertBanner>{['Embudos y rejillas sin escombros','Sin agua estancada por más de 48hs','Bajantes sin obstrucción verificada'].map((l,i)=>(<Toggle key={i} label={l} value={drain[i]} onChange={v=>{const a=[...drain];a[i]=v;setDrain(a)}}/>))}<div style={{marginTop:14}}><PhotoUpload label="Foto del embudo principal" value={drainPhoto} onChange={setDrainPhoto}/></div></div>)}
-        {step===6&&(<div style={{animation:'fadeIn 0.3s ease'}}><div style={{fontSize:16,fontWeight:600,marginBottom:16}}>Equipos Montados</div>{['Soportes HVAC sin vibración','Sellos de claraboyas íntegros','Sin escorrentía de condensación'].map((l,i)=>(<Toggle key={i} label={l} value={equip[i]} onChange={v=>{const a=[...equip];a[i]=v;setEquip(a)}}/>))}<div style={{marginTop:14}}><PhotoUpload label="Foto de unidad HVAC" value={equipPhoto} onChange={setEquipPhoto}/></div></div>)}
-        {step===7&&(<div style={{animation:'fadeIn 0.3s ease',textAlign:'center',paddingTop:8}}><div style={{fontSize:16,fontWeight:600,marginBottom:20}}>RCI Final — Cierre</div><div style={{display:'inline-block',marginBottom:12}}><RciGauge value={calcRCI()} size={100}/></div><div style={{marginBottom:8}}><Badge color={rciColor(calcRCI())}>{rciLabel(calcRCI())}</Badge></div><div style={{fontSize:13,color:C.muted,maxWidth:280,margin:'0 auto 20px',lineHeight:1.6}}>{rciRec(calcRCI())}</div><div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,textAlign:'left',marginBottom:16}}>{[['Planta',plants.find(p=>p.id===plantId)?.name||'—'],['Tipo',type],['Membrana',membrane]].map(([k,v])=>(<div key={k} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:`1px solid ${C.border}`}}><span style={{fontSize:12,color:C.muted}}>{k}</span><span style={{fontSize:12,fontWeight:600}}>{v}</span></div>))}</div><Btn full onClick={save} disabled={saving}>{saving?'GUARDANDO...':'✓ CERRAR Y GUARDAR INSPECCIÓN'}</Btn></div>)}
-        {step<7&&(<div style={{display:'flex',gap:10,marginTop:24}}>{step>1&&<button onClick={()=>setStep(s=>s-1)} style={{flexShrink:0,background:C.surface2,border:`1px solid ${C.border}`,borderRadius:10,padding:'14px 20px',color:C.text,fontFamily:'IBM Plex Mono',fontSize:12,minHeight:44}}>← ATRÁS</button>}<button onClick={()=>canNext()&&setStep(s=>s+1)} disabled={!canNext()} style={{flex:1,background:canNext()?C.amber:C.border,color:canNext()?C.bg:C.muted,border:'none',borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,letterSpacing:'0.1em',transition:'all 0.2s',minHeight:44,cursor:canNext()?'pointer':'not-allowed'}}>SIGUIENTE PASO →</button></div>)}
+        {step===1&&(
+          <div style={{animation:'fadeIn 0.3s ease'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+              <button onClick={()=>navigate('/inspeccion/lista')} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,padding:0}}>VOLVER</button>
+              <div style={{fontSize:16,fontWeight:600}}>Identificacion del Activo</div>
+            </div>
+            <Select label="Cubierta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/>
+            <Select label="Tipo de inspeccion" value={type} onChange={setType} options={['Primavera','Otono','Post-Evento','Extraordinaria']} required/>
+            <Select label="Membrana" value={membrane} onChange={setMembrane} options={['TPO','EPDM','PVC','Asfaltica']} required/>
+          </div>
+        )}
+        {step===2&&(
+          <div style={{animation:'fadeIn 0.3s ease'}}>
+            <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>JSA — Analisis de Seguridad</div>
+            <AlertBanner color={C.amber} icon="!">Ley 19.587 / Decreto 911/96 — Todos los controles son obligatorios</AlertBanner>
+            {JSA_LABELS.map((l,i)=><Toggle key={i} label={l} value={jsa[i]} onChange={v=>{const a=[...jsa];a[i]=v;setJsa(a)}}/>)}
+            <div className="mono" style={{fontSize:10,color:jsa.every(Boolean)?C.green:C.red,marginTop:12}}>{jsa.every(Boolean)?'v TODOS LOS CONTROLES OK':`x ${jsa.filter(Boolean).length}/6 COMPLETADOS`}</div>
+          </div>
+        )}
+        {step===3&&(
+          <div style={{animation:'fadeIn 0.3s ease'}}>
+            <div style={{fontSize:16,fontWeight:600,marginBottom:16}}>Superficie de Membrana</div>
+            {[['Cuarteamiento superficial','cuarteamiento'],['Ampollas (blistering)','ampollas'],['Perdida de granulos','granulos'],['Perforaciones / punzocortantes','perforaciones'],['Degradacion UV','uvDeg']].map(([label,key])=>(
+              <div key={key} style={{marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{label}</div>
+                <SeverityChips value={memb[key]} onChange={v=>setMemb(p=>({...p,[key]:v}))}/>
+              </div>
+            ))}
+            <PhotoUpload label="Foto de membrana (obligatorio)" value={membPhoto} onChange={setMembPhoto}/>
+          </div>
+        )}
+        {step===4&&(
+          <div style={{animation:'fadeIn 0.3s ease'}}>
+            <div style={{fontSize:16,fontWeight:600,marginBottom:16}}>Uniones y Costuras</div>
+            {[['Levantamiento por viento','viento'],['Separacion adhesiva','adhesiva'],['Estres termico','termico']].map(([label,key])=>(
+              <div key={key} style={{marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:8}}>{label}</div>
+                <SeverityChips value={uniones[key]} onChange={v=>setUniones(p=>({...p,[key]:v}))}/>
+              </div>
+            ))}
+            <PhotoUpload label="Foto de costura critica" value={unionPhoto} onChange={setUnionPhoto}/>
+          </div>
+        )}
+        {step===5&&(
+          <div style={{animation:'fadeIn 0.3s ease'}}>
+            <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>Sistema de Drenaje</div>
+            <AlertBanner color={C.blue} icon="i">Agua estancada +48hs puede invalidar garantia de membrana.</AlertBanner>
+            {['Embudos y rejillas sin escombros','Sin agua estancada por mas de 48hs','Bajantes sin obstruccion verificada'].map((l,i)=>(
+              <Toggle key={i} label={l} value={drain[i]} onChange={v=>{const a=[...drain];a[i]=v;setDrain(a)}}/>
+            ))}
+            <div style={{marginTop:14}}><PhotoUpload label="Foto del embudo principal" value={drainPhoto} onChange={setDrainPhoto}/></div>
+          </div>
+        )}
+        {step===6&&(
+          <div style={{animation:'fadeIn 0.3s ease'}}>
+            <div style={{fontSize:16,fontWeight:600,marginBottom:16}}>Equipos Montados</div>
+            {['Soportes HVAC sin vibracion','Sellos de claraboyas integros','Sin escorrentia de condensacion'].map((l,i)=>(
+              <Toggle key={i} label={l} value={equip[i]} onChange={v=>{const a=[...equip];a[i]=v;setEquip(a)}}/>
+            ))}
+            <div style={{marginTop:14}}><PhotoUpload label="Foto de unidad HVAC" value={equipPhoto} onChange={setEquipPhoto}/></div>
+          </div>
+        )}
+        {step===7&&(
+          <div style={{animation:'fadeIn 0.3s ease',paddingTop:8}}>
+            <div style={{fontSize:16,fontWeight:600,marginBottom:20,textAlign:'center'}}>RCI Final — Cierre</div>
+            <div style={{display:'flex',justifyContent:'center',marginBottom:12}}><RciGauge value={calcRCI()} size={100}/></div>
+            <div style={{textAlign:'center',marginBottom:20}}><Badge color={rciColor(calcRCI())}>{rciLabel(calcRCI())}</Badge></div>
+            <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:16}}>
+              {[['Cubierta',plants.find(p=>p.id===plantId)?.name||'—'],['Tipo',type],['Membrana',membrane]].map(([k,v])=>(
+                <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:12,color:C.muted}}>{k}</span>
+                  <span style={{fontSize:12,fontWeight:600}}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{marginBottom:16}}>
+              <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Notas del inspector (opcional)</div>
+              <textarea value={inspNotes} onChange={e=>setInspNotes(e.target.value)}
+                placeholder="Observaciones generales, hallazgos adicionales, recomendaciones del inspector..."
+                rows={4}
+                style={{width:'100%',background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'12px',color:C.text,fontSize:13,outline:'none',resize:'vertical',fontFamily:'inherit'}}/>
+            </div>
+            <Btn full onClick={save} disabled={saving}>{saving?'GUARDANDO...':'CERRAR Y GUARDAR INSPECCION'}</Btn>
+          </div>
+        )}
+        {step<7&&(
+          <div style={{display:'flex',gap:10,marginTop:24}}>
+            {step>1&&<button onClick={()=>setStep(s=>s-1)} style={{flexShrink:0,background:C.surface2,border:`1px solid ${C.border}`,borderRadius:10,padding:'14px 20px',color:C.text,fontFamily:'IBM Plex Mono',fontSize:12,minHeight:44}}>ATRAS</button>}
+            <button onClick={()=>canNext()&&setStep(s=>s+1)} disabled={!canNext()} style={{flex:1,background:canNext()?C.amber:C.border,color:canNext()?C.bg:C.muted,border:'none',borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,letterSpacing:'0.1em',transition:'all 0.2s',minHeight:44,cursor:canNext()?'pointer':'not-allowed'}}>SIGUIENTE PASO</button>
+          </div>
+        )}
       </div>
     </div>
   )
