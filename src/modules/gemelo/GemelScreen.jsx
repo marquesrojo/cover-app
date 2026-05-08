@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/db/supabase'
 import { useAuth } from '@/store/AuthContext'
 import { C, rciColor, rciLabel } from '@/styles/tokens'
-import { Badge, RciGauge, Spinner, Btn, Input, Select, AlertBanner } from '@/components/ui'
+import { Badge, Spinner, Btn, Input, Select, AlertBanner } from '@/components/ui'
 
 // ── Modal editar sector ──────────────────────────────────────
 function SectorModal({sector,onClose,onSave}){
@@ -16,7 +16,7 @@ function SectorModal({sector,onClose,onSave}){
     <div style={{position:'fixed',inset:0,background:'#000a',zIndex:500,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px 12px 0 0',padding:20,animation:'slideUp 0.25s ease'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-          <span className="mono" style={{fontSize:12,fontWeight:700,color:C.amber}}>SECTOR {sector.label||`${sector.row_index+1}-${sector.col_index+1}`}</span>
+          <span className="mono" style={{fontSize:12,fontWeight:700,color:C.amber}}>SECTOR {sector.label||`${String.fromCharCode(65+sector.row_index)}${sector.col_index+1}`}</span>
           <button onClick={onClose} style={{background:'none',border:'none',color:C.muted,fontSize:18}}>✕</button>
         </div>
         <div style={{marginBottom:14}}>
@@ -46,30 +46,45 @@ function SectorModal({sector,onClose,onSave}){
   )
 }
 
-// ── Formulario nueva planta ───────────────────────────────────
-function NewPlantForm({onCreated,onCancel}){
+// ── Formulario nueva cubierta ─────────────────────────────────
+function NewCubiertaForm({onCreated,onCancel}){
   const {user}=useAuth()
   const [name,setName]=useState('')
   const [address,setAddress]=useState('')
-  const [area,setArea]=useState('')
+  const [widthM,setWidthM]=useState('')
+  const [lengthM,setLengthM]=useState('')
   const [membrane,setMembrane]=useState('')
-  const [rows,setRows]=useState('10')
-  const [cols,setCols]=useState('10')
+  const [cellSize,setCellSize]=useState('10')
   const [saving,setSaving]=useState(false)
   const [error,setError]=useState('')
 
+  // Calcular grilla automáticamente
+  const w=Number(widthM)||0
+  const l=Number(lengthM)||0
+  const cs=Number(cellSize)||10
+  const cols=w>0?Math.ceil(w/cs):0
+  const rows=l>0?Math.ceil(l/cs):0
+  const areaM2=w>0&&l>0?w*l:0
+
   const create=async()=>{
     if(!name||!membrane){setError('Nombre y membrana son obligatorios');return}
+    if(!widthM||!lengthM){setError('Ancho y largo son obligatorios');return}
+    if(cols===0||rows===0){setError('Ancho y largo deben ser mayores a 0');return}
     setSaving(true);setError('')
     const {data:plant,error:e}=await supabase.from('plants').insert({
-      name,address,area_m2:area?Number(area):null,
-      membrane,grid_rows:Number(rows),grid_cols:Number(cols),
-      cell_size_m:10,created_by:user.id
+      name,address,
+      width_m:w,length_m:l,
+      area_m2:areaM2,
+      membrane,
+      grid_rows:rows,grid_cols:cols,
+      cell_size_m:cs,
+      created_by:user.id
     }).select().single()
     if(e){setError(e.message);setSaving(false);return}
+    // Crear sectores vacíos
     const sectors=[]
-    for(let r=0;r<Number(rows);r++)
-      for(let c=0;c<Number(cols);c++)
+    for(let r=0;r<rows;r++)
+      for(let c=0;c<cols;c++)
         sectors.push({plant_id:plant.id,row_index:r,col_index:c,rci:100})
     await supabase.from('sectors').insert(sectors)
     setSaving(false)
@@ -78,22 +93,63 @@ function NewPlantForm({onCreated,onCancel}){
 
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
-      <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,letterSpacing:'0.05em',marginBottom:16,padding:0}}>VOLVER</button>
-      <div style={{fontSize:18,fontWeight:600,marginBottom:20}}>Nueva Instalacion</div>
+      <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button>
+      <div style={{fontSize:18,fontWeight:600,marginBottom:20}}>Nueva Cubierta</div>
       {error&&<AlertBanner color={C.red} icon="!">{error}</AlertBanner>}
-      <Input label="Nombre de la planta" value={name} onChange={setName} placeholder="Ej: Planta Norte — Cordoba" required/>
-      <Input label="Direccion" value={address} onChange={setAddress} placeholder="Direccion o referencia"/>
-      <Input label="Superficie (m2)" type="number" value={area} onChange={setArea} placeholder="Ej: 4200"/>
+
+      <Input label="Nombre de la cubierta" value={name} onChange={setName} placeholder="Ej: Cubierta Norte — Nave A" required/>
+      <Input label="Direccion o referencia" value={address} onChange={setAddress} placeholder="Ej: Planta industrial Lujan"/>
       <Select label="Tipo de membrana" value={membrane} onChange={setMembrane} options={['TPO','EPDM','PVC','Asfaltica']} required/>
+
       <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:14}}>
-        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Grilla del Gemelo Digital</div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-          <Input label="Filas" type="number" value={rows} onChange={setRows}/>
-          <Input label="Columnas" type="number" value={cols} onChange={setCols}/>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Dimensiones de la cubierta</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+          <Input label="Ancho (m)" type="number" value={widthM} onChange={setWidthM} placeholder="Ej: 40"/>
+          <Input label="Largo (m)" type="number" value={lengthM} onChange={setLengthM} placeholder="Ej: 60"/>
         </div>
-        <div style={{fontSize:11,color:C.muted}}>Cada celda: 10m x 10m. Grilla {rows}x{cols} = {Number(rows)*10}m x {Number(cols)*10}m</div>
+        <Input label="Tamano de celda (m)" type="number" value={cellSize} onChange={setCellSize} placeholder="10"/>
+
+        {/* Preview calculado */}
+        {areaM2>0&&(
+          <div style={{background:C.bg,borderRadius:6,padding:12,marginTop:10}}>
+            <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:8}}>Resumen calculado</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              {[
+                ['Superficie',`${areaM2.toLocaleString()} m2`],
+                ['Grilla',`${rows} x ${cols}`],
+                ['Total sectores',`${rows*cols}`],
+                ['Celda',`${cellSize}m x ${cellSize}m`],
+              ].map(([k,v])=>(
+                <div key={k}>
+                  <div className="mono" style={{fontSize:8,color:C.muted,textTransform:'uppercase'}}>{k}</div>
+                  <div className="mono" style={{fontSize:13,fontWeight:700,color:C.amber,marginTop:2}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            {/* Preview visual proporcional de la grilla */}
+            <div style={{marginTop:12}}>
+              <div className="mono" style={{fontSize:8,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Vista previa proporcional</div>
+              <div style={{
+                display:'grid',
+                gridTemplateColumns:`repeat(${Math.min(cols,20)},1fr)`,
+                gap:2,
+                maxWidth:'100%',
+                aspectRatio:`${cols}/${rows}`,
+                maxHeight:120,
+              }}>
+                {Array.from({length:Math.min(rows,10)*Math.min(cols,20)},(_,i)=>(
+                  <div key={i} style={{background:C.green+'22',border:`1px solid ${C.green}44`,borderRadius:1}}/>
+                ))}
+              </div>
+              {(rows>10||cols>20)&&<div className="mono" style={{fontSize:8,color:C.muted,marginTop:4}}>Vista simplificada — grilla completa: {rows}x{cols}</div>}
+            </div>
+          </div>
+        )}
       </div>
-      <Btn full onClick={create} disabled={saving}>{saving?'CREANDO...':'CREAR INSTALACION'}</Btn>
+
+      <Btn full onClick={create} disabled={saving||!name||!membrane||!widthM||!lengthM}>
+        {saving?'CREANDO...':'CREAR CUBIERTA'}
+      </Btn>
     </div>
   )
 }
@@ -107,18 +163,22 @@ function PlantGrid({selPlant,sectors,selCell,setSelCell,bgImage,gridOpacity}){
   return(
     <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:14,overflowX:'auto'}}>
       <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>
-        MAPA DE SECTORES · {rows}x{cols} · 10m x 10m por celda
+        MAPA DE SECTORES · {rows}x{cols} · {selPlant?.cell_size_m||10}m x {selPlant?.cell_size_m||10}m por celda
       </div>
       <div style={{position:'relative',display:'inline-block',minWidth:Math.max(cols*36+28,200)}}>
         {/* Imagen de fondo */}
         {bgImage&&(
-          <div style={{position:'absolute',top:24,left:28,right:0,bottom:0,zIndex:0,borderRadius:4,overflow:'hidden'}}>
+          <div style={{
+            position:'absolute',
+            top:24,left:28,right:0,bottom:0,
+            zIndex:0,borderRadius:4,overflow:'hidden',
+            aspectRatio:`${cols}/${rows}`
+          }}>
             <img src={bgImage} alt="plano" style={{width:'100%',height:'100%',objectFit:'cover',opacity:1-gridOpacity/100}}/>
           </div>
         )}
         {/* Grilla */}
         <div style={{position:'relative',zIndex:1}}>
-          {/* Header cols */}
           <div style={{display:'grid',gridTemplateColumns:`24px repeat(${cols},1fr)`,gap:3,marginBottom:3}}>
             <div/>
             {Array.from({length:cols},(_,i)=>(
@@ -132,9 +192,18 @@ function PlantGrid({selPlant,sectors,selCell,setSelCell,bgImage,gridOpacity}){
                 const s=getSector(ri,ci)
                 const rci=s?.rci??100
                 const color=rciColor(rci)
-                const opacity=bgImage?gridOpacity/100:1
+                const cellOpacity=bgImage?gridOpacity/100:1
                 return(
-                  <div key={ci} onClick={()=>s&&setSelCell(s)} style={{aspectRatio:'1',background:color+'22',border:`1.5px solid ${selCell?.id===s?.id?C.amber:color+'55'}`,borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',transition:'all 0.15s',minWidth:30,opacity}}>
+                  <div key={ci} onClick={()=>s&&setSelCell(s)} style={{
+                    aspectRatio:'1',
+                    background:color+'22',
+                    border:`1.5px solid ${selCell?.id===s?.id?C.amber:color+'55'}`,
+                    borderRadius:3,
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    cursor:'pointer',transition:'all 0.15s',
+                    minWidth:30,
+                    opacity:cellOpacity
+                  }}>
                     <span className="mono" style={{fontSize:9,fontWeight:700,color}}>{rci}</span>
                   </div>
                 )
@@ -195,19 +264,21 @@ export default function GemelScreen(){
   }
 
   async function loadBgImage(pid){
-    // Intentar cargar imagen del storage
-    const {data}=await supabase.storage.from('plant-backgrounds').list(pid)
-    if(data&&data.length>0){
-      const {data:{publicUrl}}=supabase.storage.from('plant-backgrounds').getPublicUrl(`${pid}/${data[0].name}`)
-      setBgImage(publicUrl)
-    } else {
-      setBgImage(null)
-    }
+    try{
+      const {data}=await supabase.storage.from('plant-backgrounds').list(pid)
+      if(data&&data.length>0){
+        const {data:{publicUrl}}=supabase.storage.from('plant-backgrounds').getPublicUrl(`${pid}/${data[0].name}`)
+        setBgImage(publicUrl)
+      } else {
+        setBgImage(null)
+      }
+    }catch(e){setBgImage(null)}
   }
 
   async function uploadBgImage(file){
     if(!selPlant||!file)return
-    const path=`${selPlant.id}/background.${file.name.split('.').pop()}`
+    const ext=file.name.split('.').pop()
+    const path=`${selPlant.id}/background.${ext}`
     const {error}=await supabase.storage.from('plant-backgrounds').upload(path,file,{upsert:true})
     if(!error){
       const {data:{publicUrl}}=supabase.storage.from('plant-backgrounds').getPublicUrl(path)
@@ -218,14 +289,15 @@ export default function GemelScreen(){
 
   async function removeBgImage(){
     if(!selPlant||!bgImage)return
-    const path=bgImage.split('/').slice(-2).join('/')
+    const parts=bgImage.split('/')
+    const path=`${parts[parts.length-2]}/${parts[parts.length-1]}`
     await supabase.storage.from('plant-backgrounds').remove([path])
     setBgImage(null)
     setShowBgPanel(false)
   }
 
   if(loading)return<Spinner/>
-  if(showNew)return<NewPlantForm onCreated={(p)=>{setPlants(prev=>[p,...prev]);setSelPlant(p);fetchSectors(p.id);setShowNew(false)}} onCancel={()=>setShowNew(false)}/>
+  if(showNew)return<NewCubiertaForm onCreated={(p)=>{setPlants(prev=>[p,...prev]);setSelPlant(p);fetchSectors(p.id);setShowNew(false)}} onCancel={()=>setShowNew(false)}/>
 
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
@@ -234,18 +306,18 @@ export default function GemelScreen(){
           <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>REPRESENTACION DIGITAL</div>
           <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Gemelo Digital</div>
         </div>
-        <Btn small onClick={()=>setShowNew(true)}>+ PLANTA</Btn>
+        <Btn small onClick={()=>setShowNew(true)}>+ CUBIERTA</Btn>
       </div>
 
       {plants.length===0?(
         <div style={{textAlign:'center',padding:'40px 0'}}>
           <div style={{fontSize:32,marginBottom:12}}>🏗</div>
-          <div style={{fontSize:14,color:C.muted,marginBottom:16}}>No hay instalaciones</div>
-          <Btn onClick={()=>setShowNew(true)}>+ CREAR PRIMERA PLANTA</Btn>
+          <div style={{fontSize:14,color:C.muted,marginBottom:16}}>No hay cubiertas cargadas</div>
+          <Btn onClick={()=>setShowNew(true)}>+ CREAR PRIMERA CUBIERTA</Btn>
         </div>
       ):(
         <>
-          {/* Selector de planta */}
+          {/* Selector de cubierta */}
           <div style={{display:'flex',gap:6,overflowX:'auto',marginBottom:14,paddingBottom:4}}>
             {plants.map(p=>(
               <button key={p.id} onClick={()=>setSelPlant(p)} style={{background:selPlant?.id===p.id?C.amberDim:C.surface2,border:`1px solid ${selPlant?.id===p.id?C.amber:C.border}`,borderRadius:6,padding:'6px 12px',cursor:'pointer',whiteSpace:'nowrap',transition:'all 0.15s'}}>
@@ -256,11 +328,15 @@ export default function GemelScreen(){
 
           {selPlant&&(
             <>
+              {/* Info cubierta */}
               <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:12,marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <div>
                   <div style={{fontSize:13,fontWeight:600}}>{selPlant.name}</div>
                   <div className="mono" style={{fontSize:10,color:C.muted,marginTop:2}}>
-                    {selPlant.area_m2?.toLocaleString()} m2 · {selPlant.membrane} · Grilla {selPlant.grid_rows||10}x{selPlant.grid_cols||10}
+                    {selPlant.width_m&&selPlant.length_m
+                      ?`${selPlant.width_m}m x ${selPlant.length_m}m · ${selPlant.area_m2?.toLocaleString()} m2`
+                      :`${selPlant.area_m2?.toLocaleString()} m2`
+                    } · {selPlant.membrane} · Grilla {selPlant.grid_rows}x{selPlant.grid_cols}
                   </div>
                 </div>
                 <button onClick={()=>navigate(`/inspeccion/nueva?plantId=${selPlant.id}`)} style={{background:C.amber,color:C.bg,border:'none',borderRadius:6,padding:'8px 12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,whiteSpace:'nowrap'}}>+ INSPECCION</button>
@@ -281,17 +357,13 @@ export default function GemelScreen(){
                 {showBgPanel&&(
                   <div style={{marginTop:12,animation:'fadeIn 0.2s ease'}}>
                     <div style={{fontSize:12,color:C.muted,marginBottom:10,lineHeight:1.5}}>
-                      Subi una foto aerea del techo o un plano. Puede ser una captura de Google Maps o un plano de planta.
+                      Subi una foto aerea o captura de Google Maps del techo. La imagen se superpone debajo de la grilla.
                     </div>
-
-                    {/* Upload */}
                     <input ref={fileInputRef} type="file" accept="image/*" style={{display:'none'}}
                       onChange={e=>{if(e.target.files[0])uploadBgImage(e.target.files[0])}}/>
                     <button onClick={()=>fileInputRef.current?.click()} style={{width:'100%',background:C.amber+'22',border:`1.5px dashed ${C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:C.amber,cursor:'pointer',marginBottom:10}}>
                       SUBIR IMAGEN / PLANO
                     </button>
-
-                    {/* Preview */}
                     {bgImage&&(
                       <div style={{marginBottom:10}}>
                         <img src={bgImage} alt="plano" style={{width:'100%',borderRadius:8,border:`1px solid ${C.border}`,marginBottom:8}}/>
@@ -300,18 +372,15 @@ export default function GemelScreen(){
                         </button>
                       </div>
                     )}
-
-                    {/* Control opacidad */}
                     {bgImage&&(
                       <div>
                         <div className="mono" style={{fontSize:10,color:C.muted,textTransform:'uppercase',marginBottom:6}}>
                           Opacidad de la grilla: <span style={{color:C.amber}}>{gridOpacity}%</span>
                         </div>
-                        <input type="range" min={20} max={100} value={gridOpacity} onChange={e=>setGridOpacity(Number(e.target.value))}
-                          style={{width:'100%',accentColor:C.amber}}/>
+                        <input type="range" min={20} max={100} value={gridOpacity} onChange={e=>setGridOpacity(Number(e.target.value))} style={{width:'100%',accentColor:C.amber}}/>
                         <div style={{display:'flex',justifyContent:'space-between'}}>
-                          <span className="mono" style={{fontSize:9,color:C.muted}}>Imagen visible</span>
-                          <span className="mono" style={{fontSize:9,color:C.muted}}>Grilla visible</span>
+                          <span className="mono" style={{fontSize:9,color:C.muted}}>Ver imagen</span>
+                          <span className="mono" style={{fontSize:9,color:C.muted}}>Ver grilla</span>
                         </div>
                       </div>
                     )}
@@ -320,14 +389,7 @@ export default function GemelScreen(){
               </div>
 
               {/* Grilla */}
-              <PlantGrid
-                selPlant={selPlant}
-                sectors={sectors}
-                selCell={selCell}
-                setSelCell={setSelCell}
-                bgImage={bgImage}
-                gridOpacity={gridOpacity}
-              />
+              <PlantGrid selPlant={selPlant} sectors={sectors} selCell={selCell} setSelCell={setSelCell} bgImage={bgImage} gridOpacity={gridOpacity}/>
 
               <div className="mono" style={{fontSize:10,color:C.muted,textAlign:'center'}}>
                 TOCA UNA CELDA PARA EDITAR SU RCI Y NOTAS
