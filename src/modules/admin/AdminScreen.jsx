@@ -124,7 +124,7 @@ function OrgsPanel(){
 
           <div style={{marginTop:10}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>Plantas con acceso</div>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>Cubiertas con acceso</div>
               <button onClick={()=>{
                 if(selectedOrg===org.id){setSelectedOrg(null)}
                 else{setSelectedOrg(org.id);fetchOrgPlants(org.id)}
@@ -144,14 +144,17 @@ function OrgsPanel(){
                     ))}
                   </div>
                 )}
-                {orgPlants.length===0&&<div style={{fontSize:12,color:C.muted,marginBottom:8}}>Sin plantas asignadas</div>}
-                <div className="mono" style={{fontSize:9,color:C.muted,marginBottom:6,textTransform:'uppercase'}}>Agregar planta:</div>
+                {orgPlants.length===0&&<div style={{fontSize:12,color:C.muted,marginBottom:8}}>Sin cubiertas asignadas</div>}
+                <div className="mono" style={{fontSize:9,color:C.muted,marginBottom:6,textTransform:'uppercase'}}>Agregar cubierta:</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                   {plants.filter(p=>!orgPlants.find(ap=>ap.plant_id===p.id)).map(p=>(
                     <button key={p.id} onClick={()=>grantAccess(org.id,p.id)} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'5px 10px',color:C.text,fontSize:11,cursor:'pointer'}}>
                       + {p.name}
                     </button>
                   ))}
+                  {plants.filter(p=>!orgPlants.find(ap=>ap.plant_id===p.id)).length===0&&(
+                    <span style={{fontSize:11,color:C.muted}}>Todas las cubiertas ya asignadas</span>
+                  )}
                 </div>
               </div>
             )}
@@ -173,7 +176,7 @@ function UsersPanel(){
   async function fetchData(){
     setLoading(true)
     const [{data:u},{data:o}]=await Promise.all([
-      supabase.from('profiles').select('*').order('full_name'),
+      supabase.from('profiles').select('*, org_members(org_id, role, organizations(name,type))').order('full_name'),
       supabase.from('organizations').select('id,name,type').order('name'),
     ])
     setUsers(u||[])
@@ -187,7 +190,13 @@ function UsersPanel(){
   }
 
   async function addToOrg(userId,orgId){
-    await supabase.from('org_members').upsert({user_id:userId,org_id:orgId,role:'org_member'})
+    const {error}=await supabase.from('org_members').insert({user_id:userId,org_id:orgId,role:'org_member'})
+    if(error){alert('Error: '+error.message);return}
+    fetchData()
+  }
+
+  async function removeFromOrg(userId,orgId){
+    await supabase.from('org_members').delete().eq('user_id',userId).eq('org_id',orgId)
     fetchData()
   }
 
@@ -214,14 +223,37 @@ function UsersPanel(){
               <option value="cover_admin">COVER ADMIN</option>
             </select>
           </div>
-          <div>
-            <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Agregar a organizacion:</div>
-            <select onChange={e=>{if(e.target.value){addToOrg(u.id,e.target.value);e.target.value=''}}}
-              style={{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'6px 10px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:10,outline:'none'}}>
-              <option value="">Seleccionar organizacion...</option>
-              {orgs.map(o=>(<option key={o.id} value={o.id}>{o.name} ({o.type})</option>))}
-            </select>
-          </div>
+
+          {/* Organizaciones actuales */}
+          {(u.org_members||[]).length>0&&(
+            <div style={{marginBottom:10}}>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Organizaciones actuales:</div>
+              {(u.org_members||[]).map(om=>(
+                <div key={om.org_id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 8px',background:C.surface,borderRadius:6,marginBottom:4}}>
+                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                    <span style={{fontSize:12,color:C.text}}>{om.organizations?.name}</span>
+                    <Badge color={om.organizations?.type==='owner'?C.blue:C.amber} small>{om.organizations?.type==='owner'?'PROP':'CONT'}</Badge>
+                  </div>
+                  <button onClick={()=>removeFromOrg(u.id,om.org_id)} style={{background:'none',border:'none',color:C.red,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>QUITAR</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Agregar a organización */}
+          {orgs.filter(o=>!(u.org_members||[]).find(om=>om.org_id===o.id)).length>0&&(
+            <div>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Agregar a organizacion:</div>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                {orgs.filter(o=>!(u.org_members||[]).find(om=>om.org_id===o.id)).map(o=>(
+                  <button key={o.id} onClick={()=>addToOrg(u.id,o.id)}
+                    style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'6px 10px',color:C.text,fontFamily:'IBM Plex Mono',fontSize:10,cursor:'pointer',minHeight:36}}>
+                    + {o.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>
