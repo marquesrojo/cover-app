@@ -88,7 +88,7 @@ export default function DashboardScreen(){
         <div style={{textAlign:'center',padding:'40px 0'}}>
           <div style={{fontSize:32,marginBottom:12}}>🏭</div>
           <div style={{fontSize:14,color:C.muted,marginBottom:16}}>No hay instalaciones cargadas</div>
-          <button onClick={()=>navigate('/gemelo')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700}}>+ CREAR PRIMERA PLANTA</button>
+          <button onClick={()=>navigate('/gemelo')} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'12px 20px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700}}>+ CREAR PRIMERA CUBIERTA</button>
         </div>
       ):(
         <>
