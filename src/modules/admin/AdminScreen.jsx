@@ -5,9 +5,10 @@ import { C } from '@/styles/tokens'
 import { Spinner, Btn, Input, Select, AlertBanner, Badge } from '@/components/ui'
 
 const SECTIONS=[
-  {id:'orgs',label:'Organizaciones',icon:'🏢'},
+  {id:'pending',label:'Pendientes',icon:'⏳'},
+  {id:'orgs',label:'Empresas',icon:'🏢'},
   {id:'users',label:'Usuarios',icon:'👥'},
-  {id:'config',label:'Configuracion',icon:'⚙️'},
+  {id:'config',label:'Config',icon:'⚙️'},
 ]
 
 const CONFIG_CATEGORIES=[
@@ -20,6 +21,111 @@ const CONFIG_CATEGORIES=[
   {id:'alerts',label:'Alertas'},
 ]
 
+// ── USUARIOS PENDIENTES ───────────────────────────────────────
+function PendingPanel(){
+  const [pending,setPending]=useState([])
+  const [orgs,setOrgs]=useState([])
+  const [loading,setLoading]=useState(true)
+  const [approving,setApproving]=useState(null)
+  const [selectedOrg,setSelectedOrg]=useState({})
+
+  useEffect(()=>{fetchData()},[])
+
+  async function fetchData(){
+    setLoading(true)
+    const [{data:u},{data:o}]=await Promise.all([
+      supabase.from('profiles').select('*').eq('approved',false).neq('role','cover_admin').neq('role','admin').order('created_at',{ascending:false}),
+      supabase.from('organizations').select('id,name,type').eq('active',true).order('name'),
+    ])
+    setPending(u||[])
+    setOrgs(o||[])
+    setLoading(false)
+  }
+
+  async function approveUser(userId){
+    const orgId=selectedOrg[userId]
+    if(!orgId){alert('Selecciona una empresa para este usuario');return}
+    setApproving(userId)
+
+    // 1. Aprobar usuario y asignar org
+    await supabase.from('profiles').update({
+      approved:true,
+      org_id:orgId,
+      onboarding_completed:true,
+    }).eq('id',userId)
+
+    // 2. Agregar a org_members
+    await supabase.from('org_members').insert({
+      user_id:userId,
+      org_id:orgId,
+      role:'org_member'
+    })
+
+    setApproving(null)
+    fetchData()
+  }
+
+  async function rejectUser(userId){
+    if(!confirm('Rechazar este usuario? Se eliminara su perfil.'))return
+    await supabase.from('profiles').delete().eq('id',userId)
+    fetchData()
+  }
+
+  if(loading)return<Spinner/>
+
+  return(
+    <div>
+      {pending.length===0?(
+        <div style={{textAlign:'center',padding:'40px 0'}}>
+          <div style={{fontSize:32,marginBottom:12}}>✅</div>
+          <div style={{fontSize:14,color:C.muted}}>No hay usuarios pendientes de aprobacion</div>
+        </div>
+      ):(
+        <>
+          <div style={{background:C.amber+'11',border:`1px solid ${C.amber}33`,borderRadius:8,padding:12,marginBottom:16}}>
+            <div className="mono" style={{fontSize:10,color:C.amber,textTransform:'uppercase',marginBottom:4}}>{pending.length} usuarios esperando aprobacion</div>
+            <div style={{fontSize:12,color:C.muted}}>Asigna cada usuario a una empresa antes de aprobar.</div>
+          </div>
+          {pending.map(u=>(
+            <div key={u.id} style={{background:C.surface2,border:`1px solid ${C.amber}44`,borderRadius:8,padding:14,marginBottom:8}}>
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:14,fontWeight:600,marginBottom:2}}>{u.full_name||'Sin nombre'}</div>
+                <div className="mono" style={{fontSize:10,color:C.muted}}>{u.id.slice(0,20)}...</div>
+                <div className="mono" style={{fontSize:9,color:C.muted,marginTop:2}}>Registrado: {new Date(u.created_at).toLocaleDateString('es-AR')}</div>
+              </div>
+
+              <div style={{marginBottom:12}}>
+                <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Asignar a empresa:</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                  {orgs.map(o=>(
+                    <button key={o.id} onClick={()=>setSelectedOrg(prev=>({...prev,[u.id]:o.id}))}
+                      style={{background:selectedOrg[u.id]===o.id?C.amber+'33':C.surface,border:`1.5px solid ${selectedOrg[u.id]===o.id?C.amber:C.border}`,borderRadius:6,padding:'6px 10px',color:selectedOrg[u.id]===o.id?C.amber:C.text,fontFamily:'IBM Plex Mono',fontSize:10,cursor:'pointer',transition:'all 0.15s'}}>
+                      {o.name}
+                    </button>
+                  ))}
+                </div>
+                {orgs.length===0&&<div style={{fontSize:12,color:C.red}}>No hay empresas creadas. Crea una primero en la seccion Empresas.</div>}
+              </div>
+
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>approveUser(u.id)} disabled={!selectedOrg[u.id]||approving===u.id}
+                  style={{flex:2,background:selectedOrg[u.id]&&approving!==u.id?C.green:C.border,color:selectedOrg[u.id]&&approving!==u.id?'#fff':C.muted,border:'none',borderRadius:6,padding:'10px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,cursor:selectedOrg[u.id]?'pointer':'not-allowed',transition:'all 0.15s'}}>
+                  {approving===u.id?'APROBANDO...':'APROBAR Y ASIGNAR'}
+                </button>
+                <button onClick={()=>rejectUser(u.id)}
+                  style={{flex:1,background:'none',border:`1px solid ${C.red}44`,borderRadius:6,padding:'10px',fontFamily:'IBM Plex Mono',fontSize:10,color:C.red,cursor:'pointer'}}>
+                  RECHAZAR
+                </button>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── ORGANIZACIONES ────────────────────────────────────────────
 function OrgsPanel(){
   const {user}=useAuth()
   const [orgs,setOrgs]=useState([])
@@ -81,13 +187,13 @@ function OrgsPanel(){
   return(
     <div>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-        <div className="mono" style={{fontSize:11,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>{orgs.length} organizaciones</div>
+        <div className="mono" style={{fontSize:11,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>{orgs.length} empresas</div>
         <Btn small onClick={()=>setShowNew(!showNew)}>+ NUEVA</Btn>
       </div>
 
       {showNew&&(
         <div style={{background:C.surface2,border:`1px solid ${C.amber}44`,borderRadius:8,padding:14,marginBottom:14,animation:'slideUp 0.25s ease'}}>
-          <div className="mono" style={{fontSize:11,color:C.amber,marginBottom:12,textTransform:'uppercase'}}>Nueva Organizacion</div>
+          <div className="mono" style={{fontSize:11,color:C.amber,marginBottom:12,textTransform:'uppercase'}}>Nueva Empresa</div>
           {error&&<AlertBanner color={C.red} icon="!">{error}</AlertBanner>}
           <Input label="Nombre" value={name} onChange={setName} placeholder="Ej: Industrial SA" required/>
           <Select label="Tipo" value={type} onChange={setType} options={[{value:'owner',label:'Propietario (dueno de edificios)'},{value:'contractor',label:'Contratista (hace trabajos)'}]} required/>
@@ -102,7 +208,7 @@ function OrgsPanel(){
       {orgs.length===0&&!loading&&(
         <div style={{textAlign:'center',padding:'40px 0',color:C.muted}}>
           <div style={{fontSize:32,marginBottom:12}}>🏢</div>
-          <div style={{fontSize:14}}>No hay organizaciones</div>
+          <div style={{fontSize:14}}>No hay empresas</div>
         </div>
       )}
 
@@ -121,7 +227,6 @@ function OrgsPanel(){
             </button>
           </div>
           {org.email&&<div style={{fontSize:11,color:C.muted,marginBottom:8}}>{org.email}</div>}
-
           <div style={{marginTop:10}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
               <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>Cubiertas con acceso</div>
@@ -165,6 +270,7 @@ function OrgsPanel(){
   )
 }
 
+// ── USUARIOS APROBADOS ────────────────────────────────────────
 function UsersPanel(){
   const [users,setUsers]=useState([])
   const [orgs,setOrgs]=useState([])
@@ -176,7 +282,7 @@ function UsersPanel(){
   async function fetchData(){
     setLoading(true)
     const [{data:u},{data:o}]=await Promise.all([
-      supabase.from('profiles').select('*, org_members(org_id, role, organizations(name,type))').order('full_name'),
+      supabase.from('profiles').select('*, org_members(org_id, role, organizations(name,type))').eq('approved',true).order('full_name'),
       supabase.from('organizations').select('id,name,type').order('name'),
     ])
     setUsers(u||[])
@@ -200,6 +306,12 @@ function UsersPanel(){
     fetchData()
   }
 
+  async function revokeAccess(userId){
+    if(!confirm('Revocar acceso a este usuario?'))return
+    await supabase.from('profiles').update({approved:false,org_id:null}).eq('id',userId)
+    fetchData()
+  }
+
   if(loading)return<Spinner/>
 
   const filtered=search?users.filter(u=>u.full_name?.toLowerCase().includes(search.toLowerCase())):users
@@ -207,7 +319,7 @@ function UsersPanel(){
   return(
     <div>
       <Input label="Buscar usuario" value={search} onChange={setSearch} placeholder="Nombre..."/>
-      {filtered.length===0&&<div style={{textAlign:'center',padding:'40px 0',color:C.muted,fontSize:13}}>No hay usuarios</div>}
+      {filtered.length===0&&<div style={{textAlign:'center',padding:'40px 0',color:C.muted,fontSize:13}}>No hay usuarios aprobados</div>}
       {filtered.map(u=>(
         <div key={u.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
@@ -215,19 +327,20 @@ function UsersPanel(){
               <div style={{fontSize:14,fontWeight:600,marginBottom:3}}>{u.full_name||'Sin nombre'}</div>
               <div className="mono" style={{fontSize:9,color:C.muted}}>{u.id.slice(0,16)}...</div>
             </div>
-            <select value={u.role||'operario'} onChange={e=>changeRole(u.id,e.target.value)}
-              style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 8px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:10,outline:'none'}}>
-              <option value="operario">OPERARIO</option>
-              <option value="gerente">GERENTE</option>
-              <option value="admin">ADMIN</option>
-              <option value="cover_admin">COVER ADMIN</option>
-            </select>
+            <div style={{display:'flex',gap:6,alignItems:'center'}}>
+              <select value={u.role||'operario'} onChange={e=>changeRole(u.id,e.target.value)}
+                style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 8px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:10,outline:'none'}}>
+                <option value="operario">OPERARIO</option>
+                <option value="gerente">GERENTE</option>
+                <option value="admin">ADMIN</option>
+                <option value="cover_admin">COVER ADMIN</option>
+              </select>
+            </div>
           </div>
 
-          {/* Organizaciones actuales */}
           {(u.org_members||[]).length>0&&(
             <div style={{marginBottom:10}}>
-              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Organizaciones actuales:</div>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Empresa:</div>
               {(u.org_members||[]).map(om=>(
                 <div key={om.org_id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 8px',background:C.surface,borderRadius:6,marginBottom:4}}>
                   <div style={{display:'flex',gap:6,alignItems:'center'}}>
@@ -240,10 +353,9 @@ function UsersPanel(){
             </div>
           )}
 
-          {/* Agregar a organización */}
           {orgs.filter(o=>!(u.org_members||[]).find(om=>om.org_id===o.id)).length>0&&(
-            <div>
-              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Agregar a organizacion:</div>
+            <div style={{marginBottom:10}}>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Agregar a empresa:</div>
               <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                 {orgs.filter(o=>!(u.org_members||[]).find(om=>om.org_id===o.id)).map(o=>(
                   <button key={o.id} onClick={()=>addToOrg(u.id,o.id)}
@@ -254,12 +366,17 @@ function UsersPanel(){
               </div>
             </div>
           )}
+
+          <button onClick={()=>revokeAccess(u.id)} style={{width:'100%',background:'none',border:`1px solid ${C.red}33`,borderRadius:6,padding:'6px',fontFamily:'IBM Plex Mono',fontSize:9,color:C.red,cursor:'pointer',marginTop:4}}>
+            REVOCAR ACCESO
+          </button>
         </div>
       ))}
     </div>
   )
 }
 
+// ── CONFIGURACION ─────────────────────────────────────────────
 function ConfigPanel(){
   const [configs,setConfigs]=useState([])
   const [loading,setLoading]=useState(true)
@@ -314,9 +431,7 @@ function ConfigPanel(){
           </button>
         ))}
       </div>
-
       {categoryItems.length===0&&<div style={{textAlign:'center',padding:'20px 0',color:C.muted,fontSize:13}}>No hay items en esta categoria</div>}
-
       {categoryItems.map(item=>(
         <div key={item.id} style={{background:C.surface2,border:`1px solid ${item.active?C.border:C.border+'44'}`,borderRadius:8,padding:12,marginBottom:6,opacity:item.active?1:0.6}}>
           {editingId===item.id?(
@@ -346,7 +461,6 @@ function ConfigPanel(){
           )}
         </div>
       ))}
-
       {!isAlerts&&(
         <div style={{background:C.surface2,border:`1.5px dashed ${C.border}`,borderRadius:8,padding:14,marginTop:12}}>
           <div className="mono" style={{fontSize:10,color:C.muted,textTransform:'uppercase',marginBottom:10}}>Agregar nuevo</div>
@@ -359,9 +473,18 @@ function ConfigPanel(){
   )
 }
 
+// ── PANTALLA PRINCIPAL ────────────────────────────────────────
 export default function AdminScreen(){
   const {profile}=useAuth()
-  const [section,setSection]=useState('orgs')
+  const [section,setSection]=useState('pending')
+  const [pendingCount,setPendingCount]=useState(0)
+
+  useEffect(()=>{
+    if(profile?.role==='cover_admin'||profile?.role==='admin'){
+      supabase.from('profiles').select('id',{count:'exact',head:true}).eq('approved',false).neq('role','cover_admin').neq('role','admin')
+        .then(({count})=>setPendingCount(count||0))
+    }
+  },[profile])
 
   if(!profile)return<Spinner/>
 
@@ -383,14 +506,20 @@ export default function AdminScreen(){
 
       <div style={{display:'flex',gap:0,background:C.surface2,margin:'0 16px 16px',borderRadius:8,padding:4}}>
         {SECTIONS.map(s=>(
-          <button key={s.id} onClick={()=>setSection(s.id)} style={{flex:1,background:section===s.id?C.amber:'transparent',color:section===s.id?C.bg:C.muted,border:'none',borderRadius:6,padding:'8px 4px',fontFamily:'IBM Plex Mono',fontSize:9,fontWeight:700,transition:'all 0.2s',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+          <button key={s.id} onClick={()=>setSection(s.id)} style={{flex:1,background:section===s.id?C.amber:'transparent',color:section===s.id?C.bg:C.muted,border:'none',borderRadius:6,padding:'8px 4px',fontFamily:'IBM Plex Mono',fontSize:9,fontWeight:700,transition:'all 0.2s',display:'flex',flexDirection:'column',alignItems:'center',gap:3,position:'relative'}}>
             <span style={{fontSize:14}}>{s.icon}</span>
             {s.label.toUpperCase()}
+            {s.id==='pending'&&pendingCount>0&&(
+              <div style={{position:'absolute',top:4,right:4,background:C.red,color:'#fff',borderRadius:'50%',width:16,height:16,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700}}>
+                {pendingCount}
+              </div>
+            )}
           </button>
         ))}
       </div>
 
       <div style={{padding:'0 16px'}}>
+        {section==='pending'&&<PendingPanel/>}
         {section==='orgs'&&<OrgsPanel/>}
         {section==='users'&&<UsersPanel/>}
         {section==='config'&&<ConfigPanel/>}
