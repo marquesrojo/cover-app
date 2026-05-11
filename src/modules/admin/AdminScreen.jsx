@@ -303,9 +303,8 @@ function UsersPanel(){
             </div>
             <select value={u.role||'operario'} onChange={e=>changeRole(u.id,e.target.value)}
               style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 8px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:10,outline:'none'}}>
-              <option value="operario">OPERARIO</option>
-              <option value="gerente">GERENTE</option>
-              <option value="admin">ADMIN</option>
+              <option value="operario">CONTRATISTA</option>
+              <option value="gerente">PROPIETARIO</option>
               <option value="cover_admin">COVER ADMIN</option>
             </select>
           </div>
