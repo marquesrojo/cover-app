@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/db/supabase'
 import { useAuth } from '@/store/AuthContext'
 import { C } from '@/styles/tokens'
-import { Spinner, Btn, Input, Select, AlertBanner, Badge } from '@/components/ui'
+import { Spinner, Btn, Input, AlertBanner, Badge } from '@/components/ui'
 
 const SECTIONS=[
   {id:'pending',label:'Pendientes',icon:'⏳'},
@@ -21,7 +21,6 @@ const CONFIG_CATEGORIES=[
   {id:'alerts',label:'Alertas'},
 ]
 
-// ── USUARIOS PENDIENTES ───────────────────────────────────────
 function PendingPanel(){
   const [pending,setPending]=useState([])
   const [orgs,setOrgs]=useState([])
@@ -35,7 +34,7 @@ function PendingPanel(){
     setLoading(true)
     const [{data:u},{data:o}]=await Promise.all([
       supabase.from('profiles').select('*').eq('approved',false).neq('role','cover_admin').neq('role','admin').order('created_at',{ascending:false}),
-      supabase.from('organizations').select('id,name,type').eq('active',true).order('name'),
+      supabase.from('organizations').select('id,name').eq('active',true).order('name'),
     ])
     setPending(u||[])
     setOrgs(o||[])
@@ -46,21 +45,8 @@ function PendingPanel(){
     const orgId=selectedOrg[userId]
     if(!orgId){alert('Selecciona una empresa para este usuario');return}
     setApproving(userId)
-
-    // 1. Aprobar usuario y asignar org
-    await supabase.from('profiles').update({
-      approved:true,
-      org_id:orgId,
-      onboarding_completed:true,
-    }).eq('id',userId)
-
-    // 2. Agregar a org_members
-    await supabase.from('org_members').insert({
-      user_id:userId,
-      org_id:orgId,
-      role:'org_member'
-    })
-
+    await supabase.from('profiles').update({approved:true,org_id:orgId,onboarding_completed:true}).eq('id',userId)
+    await supabase.from('org_members').insert({user_id:userId,org_id:orgId,role:'org_member'})
     setApproving(null)
     fetchData()
   }
@@ -93,7 +79,6 @@ function PendingPanel(){
                 <div className="mono" style={{fontSize:10,color:C.muted}}>{u.id.slice(0,20)}...</div>
                 <div className="mono" style={{fontSize:9,color:C.muted,marginTop:2}}>Registrado: {new Date(u.created_at).toLocaleDateString('es-AR')}</div>
               </div>
-
               <div style={{marginBottom:12}}>
                 <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Asignar a empresa:</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
@@ -106,7 +91,6 @@ function PendingPanel(){
                 </div>
                 {orgs.length===0&&<div style={{fontSize:12,color:C.red}}>No hay empresas creadas. Crea una primero en la seccion Empresas.</div>}
               </div>
-
               <div style={{display:'flex',gap:8}}>
                 <button onClick={()=>approveUser(u.id)} disabled={!selectedOrg[u.id]||approving===u.id}
                   style={{flex:2,background:selectedOrg[u.id]&&approving!==u.id?C.green:C.border,color:selectedOrg[u.id]&&approving!==u.id?'#fff':C.muted,border:'none',borderRadius:6,padding:'10px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,cursor:selectedOrg[u.id]?'pointer':'not-allowed',transition:'all 0.15s'}}>
@@ -125,7 +109,6 @@ function PendingPanel(){
   )
 }
 
-// ── ORGANIZACIONES ────────────────────────────────────────────
 function OrgsPanel(){
   const {user}=useAuth()
   const [orgs,setOrgs]=useState([])
@@ -133,8 +116,6 @@ function OrgsPanel(){
   const [loading,setLoading]=useState(true)
   const [showNew,setShowNew]=useState(false)
   const [name,setName]=useState('')
-  const [type,setType]=useState('')
-  const [email,setEmail]=useState('')
   const [saving,setSaving]=useState(false)
   const [error,setError]=useState('')
   const [selectedOrg,setSelectedOrg]=useState(null)
@@ -159,11 +140,11 @@ function OrgsPanel(){
   }
 
   async function createOrg(){
-    if(!name||!type){setError('Nombre y tipo son obligatorios');return}
+    if(!name){setError('El nombre es obligatorio');return}
     setSaving(true);setError('')
-    const {error:e}=await supabase.from('organizations').insert({name,type,email:email||null,created_by:user.id})
+    const {error:e}=await supabase.from('organizations').insert({name,type:'owner',created_by:user.id})
     if(e){setError(e.message);setSaving(false);return}
-    setName('');setType('');setEmail('');setShowNew(false)
+    setName('');setShowNew(false)
     setSaving(false);fetchData()
   }
 
@@ -195,12 +176,10 @@ function OrgsPanel(){
         <div style={{background:C.surface2,border:`1px solid ${C.amber}44`,borderRadius:8,padding:14,marginBottom:14,animation:'slideUp 0.25s ease'}}>
           <div className="mono" style={{fontSize:11,color:C.amber,marginBottom:12,textTransform:'uppercase'}}>Nueva Empresa</div>
           {error&&<AlertBanner color={C.red} icon="!">{error}</AlertBanner>}
-          <Input label="Nombre" value={name} onChange={setName} placeholder="Ej: Industrial SA" required/>
-          <Select label="Tipo" value={type} onChange={setType} options={[{value:'owner',label:'Propietario (dueno de edificios)'},{value:'contractor',label:'Contratista (hace trabajos)'}]} required/>
-          <Input label="Email de contacto" type="email" value={email} onChange={setEmail} placeholder="contacto@empresa.com"/>
+          <Input label="Nombre de la empresa" value={name} onChange={setName} placeholder="Ej: Ford Argentina" required/>
           <div style={{display:'flex',gap:8}}>
-            <Btn outline onClick={()=>{setShowNew(false);setError('')}}>CANCELAR</Btn>
-            <Btn onClick={createOrg} disabled={!name||!type||saving}>{saving?'CREANDO...':'CREAR'}</Btn>
+            <Btn outline onClick={()=>{setShowNew(false);setError('');setName('')}}>CANCELAR</Btn>
+            <Btn onClick={createOrg} disabled={!name||saving}>{saving?'CREANDO...':'CREAR'}</Btn>
           </div>
         </div>
       )}
@@ -217,16 +196,12 @@ function OrgsPanel(){
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
             <div>
               <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>{org.name}</div>
-              <div style={{display:'flex',gap:6}}>
-                <Badge color={org.type==='owner'?C.blue:C.amber} small>{org.type==='owner'?'PROPIETARIO':'CONTRATISTA'}</Badge>
-                <Badge color={org.active?C.green:C.muted} small>{org.active?'ACTIVO':'INACTIVO'}</Badge>
-              </div>
+              <Badge color={org.active?C.green:C.muted} small>{org.active?'ACTIVO':'INACTIVO'}</Badge>
             </div>
             <button onClick={()=>toggleOrg(org)} style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 8px',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>
               {org.active?'DESACTIVAR':'ACTIVAR'}
             </button>
           </div>
-          {org.email&&<div style={{fontSize:11,color:C.muted,marginBottom:8}}>{org.email}</div>}
           <div style={{marginTop:10}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
               <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>Cubiertas con acceso</div>
@@ -270,7 +245,6 @@ function OrgsPanel(){
   )
 }
 
-// ── USUARIOS APROBADOS ────────────────────────────────────────
 function UsersPanel(){
   const [users,setUsers]=useState([])
   const [orgs,setOrgs]=useState([])
@@ -282,8 +256,8 @@ function UsersPanel(){
   async function fetchData(){
     setLoading(true)
     const [{data:u},{data:o}]=await Promise.all([
-      supabase.from('profiles').select('*, org_members(org_id, role, organizations(name,type))').eq('approved',true).order('full_name'),
-      supabase.from('organizations').select('id,name,type').order('name'),
+      supabase.from('profiles').select('*, org_members(org_id, role, organizations(name))').eq('approved',true).order('full_name'),
+      supabase.from('organizations').select('id,name').order('name'),
     ])
     setUsers(u||[])
     setOrgs(o||[])
@@ -327,32 +301,25 @@ function UsersPanel(){
               <div style={{fontSize:14,fontWeight:600,marginBottom:3}}>{u.full_name||'Sin nombre'}</div>
               <div className="mono" style={{fontSize:9,color:C.muted}}>{u.id.slice(0,16)}...</div>
             </div>
-            <div style={{display:'flex',gap:6,alignItems:'center'}}>
-              <select value={u.role||'operario'} onChange={e=>changeRole(u.id,e.target.value)}
-                style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 8px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:10,outline:'none'}}>
-                <option value="operario">OPERARIO</option>
-                <option value="gerente">GERENTE</option>
-                <option value="admin">ADMIN</option>
-                <option value="cover_admin">COVER ADMIN</option>
-              </select>
-            </div>
+            <select value={u.role||'operario'} onChange={e=>changeRole(u.id,e.target.value)}
+              style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 8px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:10,outline:'none'}}>
+              <option value="operario">OPERARIO</option>
+              <option value="gerente">GERENTE</option>
+              <option value="admin">ADMIN</option>
+              <option value="cover_admin">COVER ADMIN</option>
+            </select>
           </div>
-
           {(u.org_members||[]).length>0&&(
             <div style={{marginBottom:10}}>
               <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Empresa:</div>
               {(u.org_members||[]).map(om=>(
                 <div key={om.org_id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 8px',background:C.surface,borderRadius:6,marginBottom:4}}>
-                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                    <span style={{fontSize:12,color:C.text}}>{om.organizations?.name}</span>
-                    <Badge color={om.organizations?.type==='owner'?C.blue:C.amber} small>{om.organizations?.type==='owner'?'PROP':'CONT'}</Badge>
-                  </div>
+                  <span style={{fontSize:12,color:C.text}}>{om.organizations?.name}</span>
                   <button onClick={()=>removeFromOrg(u.id,om.org_id)} style={{background:'none',border:'none',color:C.red,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>QUITAR</button>
                 </div>
               ))}
             </div>
           )}
-
           {orgs.filter(o=>!(u.org_members||[]).find(om=>om.org_id===o.id)).length>0&&(
             <div style={{marginBottom:10}}>
               <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Agregar a empresa:</div>
@@ -366,7 +333,6 @@ function UsersPanel(){
               </div>
             </div>
           )}
-
           <button onClick={()=>revokeAccess(u.id)} style={{width:'100%',background:'none',border:`1px solid ${C.red}33`,borderRadius:6,padding:'6px',fontFamily:'IBM Plex Mono',fontSize:9,color:C.red,cursor:'pointer',marginTop:4}}>
             REVOCAR ACCESO
           </button>
@@ -376,7 +342,6 @@ function UsersPanel(){
   )
 }
 
-// ── CONFIGURACION ─────────────────────────────────────────────
 function ConfigPanel(){
   const [configs,setConfigs]=useState([])
   const [loading,setLoading]=useState(true)
@@ -473,7 +438,6 @@ function ConfigPanel(){
   )
 }
 
-// ── PANTALLA PRINCIPAL ────────────────────────────────────────
 export default function AdminScreen(){
   const {profile}=useAuth()
   const [section,setSection]=useState('pending')
