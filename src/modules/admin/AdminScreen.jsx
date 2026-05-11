@@ -250,6 +250,14 @@ function UsersPanel(){
   const [orgs,setOrgs]=useState([])
   const [loading,setLoading]=useState(true)
   const [search,setSearch]=useState('')
+  const [showNew,setShowNew]=useState(false)
+  const [newName,setNewName]=useState('')
+  const [newEmail,setNewEmail]=useState('')
+  const [newPassword,setNewPassword]=useState('')
+  const [newOrgId,setNewOrgId]=useState('')
+  const [newRole,setNewRole]=useState('operario')
+  const [creating,setCreating]=useState(false)
+  const [createError,setCreateError]=useState('')
 
   useEffect(()=>{fetchData()},[])
 
@@ -262,6 +270,43 @@ function UsersPanel(){
     setUsers(u||[])
     setOrgs(o||[])
     setLoading(false)
+  }
+
+  async function createUser(){
+    if(!newName||!newEmail||!newPassword||!newOrgId){setCreateError('Todos los campos son obligatorios');return}
+    if(newPassword.length<6){setCreateError('La contraseña debe tener al menos 6 caracteres');return}
+    setCreating(true);setCreateError('')
+
+    // 1. Crear usuario en Supabase Auth
+    const {data:authData,error:authErr}=await supabase.auth.admin.createUser({
+      email:newEmail,
+      password:newPassword,
+      email_confirm:true,
+      user_metadata:{full_name:newName}
+    })
+    if(authErr){setCreateError(authErr.message);setCreating(false);return}
+
+    const userId=authData.user?.id
+    if(!userId){setCreateError('Error al crear el usuario');setCreating(false);return}
+
+    // 2. Esperar que el trigger cree el profile
+    await new Promise(r=>setTimeout(r,1000))
+
+    // 3. Actualizar profile
+    await supabase.from('profiles').update({
+      full_name:newName,
+      role:newRole,
+      org_id:newOrgId,
+      approved:true,
+      onboarding_completed:true,
+    }).eq('id',userId)
+
+    // 4. Agregar a org_members
+    await supabase.from('org_members').insert({user_id:userId,org_id:newOrgId,role:'org_member'})
+
+    setNewName('');setNewEmail('');setNewPassword('');setNewOrgId('');setNewRole('operario')
+    setShowNew(false);setCreating(false)
+    fetchData()
   }
 
   async function changeRole(userId,role){
@@ -292,7 +337,48 @@ function UsersPanel(){
 
   return(
     <div>
-      <Input label="Buscar usuario" value={search} onChange={setSearch} placeholder="Nombre..."/>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+        <Input label="Buscar usuario" value={search} onChange={setSearch} placeholder="Nombre..."/>
+        <button onClick={()=>setShowNew(!showNew)} style={{background:C.amber,color:C.bg,border:'none',borderRadius:8,padding:'10px 14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,marginLeft:8,whiteSpace:'nowrap',minHeight:44,marginTop:20}}>+ NUEVO</button>
+      </div>
+
+      {showNew&&(
+        <div style={{background:C.surface2,border:`1px solid ${C.amber}44`,borderRadius:8,padding:14,marginBottom:16,animation:'slideUp 0.25s ease'}}>
+          <div className="mono" style={{fontSize:11,color:C.amber,marginBottom:12,textTransform:'uppercase'}}>Crear usuario</div>
+          {createError&&<AlertBanner color={C.red} icon="!">{createError}</AlertBanner>}
+          <Input label="Nombre completo" value={newName} onChange={setNewName} placeholder="Juan Garcia" required/>
+          <Input label="Email" type="email" value={newEmail} onChange={setNewEmail} placeholder="juan@empresa.com" required/>
+          <Input label="Contraseña" type="password" value={newPassword} onChange={setNewPassword} placeholder="Minimo 6 caracteres" required/>
+          <div style={{marginBottom:14}}>
+            <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Empresa</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+              {orgs.map(o=>(
+                <button key={o.id} onClick={()=>setNewOrgId(o.id)}
+                  style={{background:newOrgId===o.id?C.amber+'33':C.surface,border:`1.5px solid ${newOrgId===o.id?C.amber:C.border}`,borderRadius:6,padding:'6px 10px',color:newOrgId===o.id?C.amber:C.text,fontFamily:'IBM Plex Mono',fontSize:10,cursor:'pointer'}}>
+                  {o.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{marginBottom:14}}>
+            <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Rol</div>
+            <div style={{display:'flex',gap:6}}>
+              {[['operario','CONTRATISTA'],['gerente','PROPIETARIO']].map(([val,label])=>(
+                <button key={val} onClick={()=>setNewRole(val)}
+                  style={{flex:1,background:newRole===val?C.amber+'33':C.surface,border:`1.5px solid ${newRole===val?C.amber:C.border}`,borderRadius:6,padding:'8px',color:newRole===val?C.amber:C.text,fontFamily:'IBM Plex Mono',fontSize:10,cursor:'pointer'}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <Btn outline onClick={()=>{setShowNew(false);setCreateError('')}}>CANCELAR</Btn>
+            <Btn onClick={createUser} disabled={!newName||!newEmail||!newPassword||!newOrgId||creating}>
+              {creating?'CREANDO...':'CREAR USUARIO'}
+            </Btn>
+          </div>
+        </div>
+      )}
       {filtered.length===0&&<div style={{textAlign:'center',padding:'40px 0',color:C.muted,fontSize:13}}>No hay usuarios aprobados</div>}
       {filtered.map(u=>(
         <div key={u.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8}}>
