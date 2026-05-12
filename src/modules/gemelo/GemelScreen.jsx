@@ -5,7 +5,6 @@ import { useAuth } from '@/store/AuthContext'
 import { C, rciColor, rciLabel } from '@/styles/tokens'
 import { Badge, Spinner, Btn, Input, Select, AlertBanner } from '@/components/ui'
 
-// ── Modal editar sector individual ───────────────────────────
 function SectorModal({sector,onClose,onSave}){
   const [rci,setRci]=useState(sector.rci??100)
   const [notes,setNotes]=useState(sector.notes||'')
@@ -46,7 +45,6 @@ function SectorModal({sector,onClose,onSave}){
   )
 }
 
-// ── Modal editar selección múltiple ──────────────────────────
 function MultiSectorModal({count,onClose,onSave}){
   const [rci,setRci]=useState(100)
   const [notes,setNotes]=useState('')
@@ -86,7 +84,6 @@ function MultiSectorModal({count,onClose,onSave}){
   )
 }
 
-// ── Formulario nueva cubierta ─────────────────────────────────
 function NewCubiertaForm({onCreated,onCancel}){
   const {user}=useAuth()
   const [name,setName]=useState('')
@@ -156,11 +153,10 @@ function NewCubiertaForm({onCreated,onCancel}){
   )
 }
 
-// ── Pantalla principal Gemelo ─────────────────────────────────
 export default function GemelScreen(){
   const {plantId}=useParams()
   const navigate=useNavigate()
-  const {user}=useAuth()
+  const {user,profile}=useAuth()
   const [plants,setPlants]=useState([])
   const [selPlant,setSelPlant]=useState(null)
   const [sectors,setSectors]=useState([])
@@ -170,14 +166,17 @@ export default function GemelScreen(){
   const [bgImage,setBgImage]=useState(null)
   const [gridOpacity,setGridOpacity]=useState(70)
   const [showBgPanel,setShowBgPanel]=useState(false)
+  const [showDeleteConfirm,setShowDeleteConfirm]=useState(false)
+  const [deleting,setDeleting]=useState(false)
   const fileInputRef=useRef()
-  // Selección múltiple
   const [multiMode,setMultiMode]=useState(false)
   const [selectedIds,setSelectedIds]=useState([])
   const [showMultiModal,setShowMultiModal]=useState(false)
 
+  const isAdmin=profile?.role==='cover_admin'||profile?.role==='admin'
+
   useEffect(()=>{fetchPlants()},[])
-  useEffect(()=>{if(selPlant){fetchSectors(selPlant.id);loadBgImage(selPlant.id);setMultiMode(false);setSelectedIds([])}},[selPlant])
+  useEffect(()=>{if(selPlant){fetchSectors(selPlant.id);loadBgImage(selPlant.id);setMultiMode(false);setSelectedIds([]);setShowDeleteConfirm(false)}},[selPlant])
   useEffect(()=>{if(plantId&&plants.length){const p=plants.find(x=>x.id===plantId);if(p)setSelPlant(p)}},[plantId,plants])
 
   async function fetchPlants(){
@@ -239,19 +238,33 @@ export default function GemelScreen(){
     setBgImage(null);setShowBgPanel(false)
   }
 
+  async function deletePlant(){
+    if(!selPlant)return
+    setDeleting(true)
+    await supabase.from('sectors').delete().eq('plant_id',selPlant.id)
+    await supabase.from('plant_access').delete().eq('plant_id',selPlant.id)
+    await supabase.from('plants').delete().eq('id',selPlant.id)
+    const remaining=plants.filter(p=>p.id!==selPlant.id)
+    setPlants(remaining)
+    setSelPlant(remaining.length>0?remaining[0]:null)
+    setShowDeleteConfirm(false)
+    setDeleting(false)
+  }
+
   if(loading)return<Spinner/>
   if(showNew)return<NewCubiertaForm onCreated={(p)=>{setPlants(prev=>[p,...prev]);setSelPlant(p);fetchSectors(p.id);setShowNew(false)}} onCancel={()=>setShowNew(false)}/>
 
   const rows=selPlant?.grid_rows||10
   const cols=selPlant?.grid_cols||10
   const getSector=(r,c)=>sectors.find(s=>s.row_index===r&&s.col_index===c)
+  const canDelete=selPlant&&(isAdmin||selPlant.created_by===user?.id)
 
   return(
     <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}}>
         <div>
-          <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>REPRESENTACION DIGITAL</div>
-          <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Gemelo Digital</div>
+          <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase'}}>MAPA DE SECTORES</div>
+          <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Cubiertas</div>
         </div>
         <Btn small onClick={()=>setShowNew(true)}>+ CUBIERTA</Btn>
       </div>
@@ -281,8 +294,27 @@ export default function GemelScreen(){
                     {selPlant.width_m&&selPlant.length_m?`${selPlant.width_m}m x ${selPlant.length_m}m · `:''}{selPlant.area_m2?.toLocaleString()} m2 · {selPlant.membrane} · {rows}x{cols}
                   </div>
                 </div>
-                <button onClick={()=>navigate(`/inspeccion/nueva?plantId=${selPlant.id}`)} style={{background:C.amber,color:C.bg,border:'none',borderRadius:6,padding:'8px 12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,whiteSpace:'nowrap'}}>+ INSPECCION</button>
+                <div style={{display:'flex',gap:6}}>
+                  <button onClick={()=>navigate(`/inspeccion/nueva?plantId=${selPlant.id}`)} style={{background:C.amber,color:C.bg,border:'none',borderRadius:6,padding:'8px 12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,whiteSpace:'nowrap'}}>+ INSPECCION</button>
+                  {canDelete&&(
+                    <button onClick={()=>setShowDeleteConfirm(true)} style={{background:'none',border:`1px solid ${C.red}44`,borderRadius:6,padding:'8px 10px',fontFamily:'IBM Plex Mono',fontSize:10,color:C.red,cursor:'pointer'}}>🗑</button>
+                  )}
+                </div>
               </div>
+
+              {/* Confirmar borrado */}
+              {showDeleteConfirm&&(
+                <div style={{background:C.red+'11',border:`1px solid ${C.red}44`,borderRadius:8,padding:14,marginBottom:14,animation:'fadeIn 0.2s ease'}}>
+                  <div style={{fontSize:13,fontWeight:600,color:C.red,marginBottom:6}}>Borrar cubierta "{selPlant.name}"</div>
+                  <div style={{fontSize:12,color:C.muted,marginBottom:12}}>Se eliminarán todos los sectores y accesos asociados. Esta acción no se puede deshacer.</div>
+                  <div style={{display:'flex',gap:8}}>
+                    <button onClick={()=>setShowDeleteConfirm(false)} style={{flex:1,background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'10px',fontFamily:'IBM Plex Mono',fontSize:10,color:C.muted,cursor:'pointer'}}>CANCELAR</button>
+                    <button onClick={deletePlant} disabled={deleting} style={{flex:1,background:C.red,color:'#fff',border:'none',borderRadius:6,padding:'10px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,cursor:'pointer'}}>
+                      {deleting?'BORRANDO...':'CONFIRMAR BORRADO'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Panel imagen de fondo */}
               <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:12,marginBottom:14}}>
