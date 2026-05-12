@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/db/supabase'
 import { useAuth } from '@/store/AuthContext'
@@ -22,6 +22,7 @@ function NuevaObraForm({onCreated,onCancel}){
   const [contractor,setContractor]=useState('')
   const [plannedStart,setPlannedStart]=useState('')
   const [plannedEnd,setPlannedEnd]=useState('')
+  const [fotosUrl,setFotosUrl]=useState('')
   const [hitos,setHitos]=useState([{title:'Inicio de obra',planned_date:''},{title:'Finalizacion',planned_date:''}])
   const [saving,setSaving]=useState(false)
   const [error,setError]=useState('')
@@ -36,7 +37,12 @@ function NuevaObraForm({onCreated,onCancel}){
   const save=async()=>{
     if(!plantId||!title||!type){setError('Planta, titulo y tipo son obligatorios');return}
     setSaving(true);setError('')
-    const {data:obra,error:e}=await supabase.from('obras').insert({plant_id:plantId,ticket_id:ticketId||null,title,description,type,contractor,planned_start:plannedStart||null,planned_end:plannedEnd||null,status:'planificada',created_by:user.id}).select().single()
+    const {data:obra,error:e}=await supabase.from('obras').insert({
+      plant_id:plantId,ticket_id:ticketId||null,title,description,type,contractor,
+      planned_start:plannedStart||null,planned_end:plannedEnd||null,
+      fotos_url:fotosUrl||null,
+      status:'planificada',created_by:user.id
+    }).select().single()
     if(e){setError(e.message);setSaving(false);return}
     if(hitos.filter(h=>h.title).length>0){
       await supabase.from('obra_hitos').insert(hitos.filter(h=>h.title).map((h,i)=>({obra_id:obra.id,title:h.title,planned_date:h.planned_date||null,order_index:i})))
@@ -60,6 +66,10 @@ function NuevaObraForm({onCreated,onCancel}){
         <Input label="Fin planificado" type="date" value={plannedEnd} onChange={setPlannedEnd}/>
       </div>
       <div style={{marginBottom:14}}>
+        <Input label="Link carpeta de fotos (Drive/Dropbox/etc)" value={fotosUrl} onChange={setFotosUrl} placeholder="https://drive.google.com/..."/>
+        <div style={{fontSize:11,color:C.muted,marginTop:4}}>El operario podra acceder a esta carpeta desde el parte diario para subir fotos.</div>
+      </div>
+      <div style={{marginBottom:14}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
           <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Hitos del cronograma</div>
           <button onClick={addHito} style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 10px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:10}}>+ HITO</button>
@@ -77,8 +87,9 @@ function NuevaObraForm({onCreated,onCancel}){
   )
 }
 
-function NuevoParteForm({obraId,onCreated,onCancel}){
+function NuevoParteForm({obraId,fotosUrl,onCreated,onCancel}){
   const {user}=useAuth()
+  const fileInputRef=useRef()
   const [date,setDate]=useState(new Date().toISOString().split('T')[0])
   const [workTypes,setWorkTypes]=useState([])
   const [workersCount,setWorkersCount]=useState('1')
@@ -86,18 +97,38 @@ function NuevoParteForm({obraId,onCreated,onCancel}){
   const [progressPct,setProgressPct]=useState('0')
   const [notes,setNotes]=useState('')
   const [weather,setWeather]=useState('')
-  const [photo,setPhoto]=useState(null)
+  const [photos,setPhotos]=useState([])
   const [saving,setSaving]=useState(false)
 
   const toggleWorkType=(t)=>setWorkTypes(prev=>prev.includes(t)?prev.filter(x=>x!==t):[...prev,t])
 
+  const handleFileSelect=(e)=>{
+    const files=Array.from(e.target.files)
+    const newPhotos=files.map(f=>({file:f,preview:URL.createObjectURL(f)}))
+    setPhotos(prev=>[...prev,...newPhotos])
+    e.target.value=''
+  }
+
+  const removePhoto=(idx)=>{
+    setPhotos(prev=>{
+      URL.revokeObjectURL(prev[idx].preview)
+      return prev.filter((_,i)=>i!==idx)
+    })
+  }
+
   const save=async()=>{
     setSaving(true)
-    const {data:parte,error}=await supabase.from('obra_partes').insert({obra_id:obraId,date,work_types:workTypes,workers_count:Number(workersCount),hours_worked:Number(hoursWorked),progress_pct:Number(progressPct),notes,weather:weather||null,created_by:user.id}).select().single()
+    const {data:parte,error}=await supabase.from('obra_partes').insert({
+      obra_id:obraId,date,work_types:workTypes,
+      workers_count:Number(workersCount),hours_worked:Number(hoursWorked),
+      progress_pct:Number(progressPct),notes,weather:weather||null,created_by:user.id
+    }).select().single()
     if(error){alert(error.message);setSaving(false);return}
-    if(photo?.file){
+
+    // Subir múltiples fotos
+    for(const photo of photos){
       try{
-        const path=`${obraId}/${parte.id}-${Date.now()}.jpg`
+        const path=`${obraId}/${parte.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
         const {error:upErr}=await supabase.storage.from('obra-fotos').upload(path,photo.file)
         if(!upErr){
           const {data:{publicUrl}}=supabase.storage.from('obra-fotos').getPublicUrl(path)
@@ -105,6 +136,7 @@ function NuevoParteForm({obraId,onCreated,onCancel}){
         }
       }catch(e){console.error(e)}
     }
+
     await supabase.from('obras').update({status:'en_curso',updated_at:new Date().toISOString()}).eq('id',obraId)
     setSaving(false);onCreated()
   }
@@ -140,8 +172,36 @@ function NuevoParteForm({obraId,onCreated,onCancel}){
         </div>
       </div>
       <TextArea label="Notas del dia" value={notes} onChange={setNotes} placeholder="Descripcion de trabajos realizados, inconvenientes, observaciones..." rows={4}/>
-      <PhotoUpload label="Foto del avance" value={photo} onChange={setPhoto}/>
-      <Btn full onClick={save} disabled={saving}>{saving?'GUARDANDO...':'GUARDAR PARTE DIARIO'}</Btn>
+
+      {/* Fotos múltiples */}
+      <div style={{marginBottom:16}}>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>
+          Fotos del avance ({photos.length})
+        </div>
+        <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleFileSelect}/>
+        <button onClick={()=>fileInputRef.current?.click()} style={{width:'100%',background:C.amber+'22',border:`1.5px dashed ${C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:C.amber,cursor:'pointer',marginBottom:10}}>
+          + AGREGAR FOTOS
+        </button>
+        {photos.length>0&&(
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {photos.map((p,i)=>(
+              <div key={i} style={{position:'relative'}}>
+                <img src={p.preview} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}}/>
+                <button onClick={()=>removePhoto(i)} style={{position:'absolute',top:4,right:4,background:'#000a',border:'none',borderRadius:'50%',width:24,height:24,color:'#fff',fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>x</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Link carpeta fotos */}
+      {fotosUrl&&(
+        <a href={fotosUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:C.blue+'22',border:`1px solid ${C.blue}44`,color:C.blue,borderRadius:8,padding:'12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,textDecoration:'none',marginBottom:16}}>
+          ABRIR CARPETA DE FOTOS COMPARTIDA
+        </a>
+      )}
+
+      <Btn full onClick={save} disabled={saving}>{saving?`GUARDANDO${photos.length>0?` (${photos.length} fotos)`:''}...`:'GUARDAR PARTE DIARIO'}</Btn>
     </div>
   )
 }
@@ -182,7 +242,7 @@ function ObraDetail({obraId,onBack}){
 
   if(loading)return<Spinner/>
   if(!obra)return<div style={{padding:24,color:C.muted}}>Obra no encontrada</div>
-  if(showNuevoParte)return<NuevoParteForm obraId={obraId} onCreated={()=>{setShowNuevoParte(false);loadData()}} onCancel={()=>setShowNuevoParte(false)}/>
+  if(showNuevoParte)return<NuevoParteForm obraId={obraId} fotosUrl={obra.fotos_url} onCreated={()=>{setShowNuevoParte(false);loadData()}} onCancel={()=>setShowNuevoParte(false)}/>
 
   const lastProgress=partes.length>0?partes[0].progress_pct:0
   const totalDays=partes.length
@@ -203,6 +263,12 @@ function ObraDetail({obraId,onBack}){
         {obra.contractor&&<div style={{fontSize:12,color:C.mutedLight,marginTop:2}}>{obra.contractor}</div>}
         {obra.tickets&&<div style={{fontSize:11,color:C.muted,marginTop:2}}>Ticket: {obra.tickets.title}</div>}
       </div>
+
+      {obra.fotos_url&&(
+        <a href={obra.fotos_url} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:C.blue+'22',border:`1px solid ${C.blue}44`,color:C.blue,borderRadius:8,padding:'10px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,textDecoration:'none',marginBottom:12}}>
+          VER CARPETA DE FOTOS
+        </a>
+      )}
 
       <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
         <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
@@ -280,6 +346,7 @@ function ObraDetail({obraId,onBack}){
           const parteUrl=`${window.location.origin}/obras/parte/${p.id}`
           const whatsappText=encodeURIComponent(`Parte diario de obra\nFecha: ${p.date}\nAvance: ${p.progress_pct}%\nVer detalle: ${parteUrl}`)
           const whatsappUrl=`https://wa.me/?text=${whatsappText}`
+          const parteFotos=fotos.filter(f=>f.parte_id===p.id)
           return(
             <div key={p.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8,animation:`fadeIn ${0.3+i*0.05}s ease`}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -299,26 +366,19 @@ function ObraDetail({obraId,onBack}){
                 <span className="mono" style={{fontSize:10,color:C.muted}}>{p.hours_worked}hs</span>
               </div>
               {p.notes&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5,marginBottom:8}}>{p.notes}</div>}
-              {/* Botón compartir WhatsApp */}
+              {parteFotos.length>0&&(
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
+                  {parteFotos.map(f=>(
+                    <img key={f.id} src={f.public_url} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:6,border:`1px solid ${C.border}`}}/>
+                  ))}
+                </div>
+              )}
               <a href={whatsappUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:'#25D366',color:'#fff',borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,textDecoration:'none',marginTop:8}}>
                 COMPARTIR PARTE POR WHATSAPP
               </a>
             </div>
           )
         })
-      )}
-
-      {fotos.length>0&&(
-        <div style={{marginTop:16}}>
-          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Fotos ({fotos.length})</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            {fotos.map(f=>(
-              <div key={f.id}>
-                <img src={f.public_url} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}}/>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   )
