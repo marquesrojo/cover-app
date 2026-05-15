@@ -10,6 +10,16 @@ const STEPS=[{id:1,label:'IDENTIFICACION'},{id:2,label:'JSA'},{id:3,label:'MEMBR
 const SEV={critico:{color:C.red,label:'CRITICO'},moderado:{color:C.orange,label:'MODERADO'},leve:{color:C.yellow,label:'LEVE'}}
 const STAT={abierto:{color:C.red,label:'ABIERTO'},en_proceso:{color:C.blue,label:'EN PROCESO'},resuelto:{color:C.green,label:'RESUELTO'}}
 
+// Hook para cargar catálogos desde platform_config
+function useConfig(category){
+  const [items,setItems]=useState([])
+  useEffect(()=>{
+    supabase.from('platform_config').select('value').eq('category',category).eq('active',true).order('order_index')
+      .then(({data})=>setItems((data||[]).map(d=>d.value)))
+  },[category])
+  return items
+}
+
 async function uploadPhoto(file,bucket,path){
   const {data,error}=await supabase.storage.from(bucket).upload(path,file,{upsert:true})
   if(error)throw error
@@ -347,6 +357,10 @@ export default function InspeccionScreen(){
   const [saving,setSaving]=useState(false)
   const [savedId,setSavedId]=useState(null)
 
+  // Cargar catálogos desde platform_config
+  const membranes=useConfig('membrane_types')
+  const inspectionTypes=useConfig('inspection_types')
+
   useEffect(()=>{supabase.from('plants').select('id,name,membrane').order('name').then(({data})=>setPlants(data||[]))},[])
 
   const canNext=()=>{
@@ -416,8 +430,10 @@ export default function InspeccionScreen(){
               <div style={{fontSize:16,fontWeight:600}}>Identificacion del Activo</div>
             </div>
             <Select label="Cubierta" value={plantId} onChange={setPlantId} options={plants.map(p=>({value:p.id,label:p.name}))} required/>
-            <Select label="Tipo de inspeccion" value={type} onChange={setType} options={['Primavera','Otono','Post-Evento','Extraordinaria']} required/>
-            <Select label="Membrana" value={membrane} onChange={setMembrane} options={['TPO','EPDM','PVC','Asfaltica']} required/>
+            <Select label="Tipo de inspeccion" value={type} onChange={setType}
+              options={inspectionTypes.length>0?inspectionTypes:['Primavera','Otono','Post-Evento','Extraordinaria']} required/>
+            <Select label="Membrana" value={membrane} onChange={setMembrane}
+              options={membranes.length>0?membranes:['TPO','EPDM','PVC','Asfaltica']} required/>
           </div>
         )}
         {step===2&&(
