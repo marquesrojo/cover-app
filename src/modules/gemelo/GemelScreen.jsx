@@ -5,6 +5,16 @@ import { useAuth } from '@/store/AuthContext'
 import { C, rciColor, rciLabel } from '@/styles/tokens'
 import { Badge, Spinner, Btn, Input, Select, AlertBanner } from '@/components/ui'
 
+// Hook para cargar catálogos desde platform_config
+function useConfig(category){
+  const [items,setItems]=useState([])
+  useEffect(()=>{
+    supabase.from('platform_config').select('value').eq('category',category).eq('active',true).order('order_index')
+      .then(({data})=>setItems((data||[]).map(d=>d.value)))
+  },[category])
+  return items
+}
+
 function SectorModal({sector,onClose,onSave}){
   const [rci,setRci]=useState(sector.rci??100)
   const [notes,setNotes]=useState(sector.notes||'')
@@ -86,6 +96,7 @@ function MultiSectorModal({count,onClose,onSave}){
 
 function NewCubiertaForm({onCreated,onCancel}){
   const {user}=useAuth()
+  const membranes=useConfig('membrane_types')
   const [name,setName]=useState('')
   const [address,setAddress]=useState('')
   const [widthM,setWidthM]=useState('')
@@ -126,7 +137,7 @@ function NewCubiertaForm({onCreated,onCancel}){
       {error&&<AlertBanner color={C.red} icon="!">{error}</AlertBanner>}
       <Input label="Nombre de la cubierta" value={name} onChange={setName} placeholder="Ej: Cubierta Norte — Nave A" required/>
       <Input label="Direccion o referencia" value={address} onChange={setAddress} placeholder="Ej: Planta industrial Lujan"/>
-      <Select label="Tipo de membrana" value={membrane} onChange={setMembrane} options={['TPO','EPDM','PVC','Asfaltica']} required/>
+      <Select label="Tipo de membrana" value={membrane} onChange={setMembrane} options={membranes.length>0?membranes:['TPO','EPDM','PVC','Asfaltica']} required/>
       <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:14}}>
         <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:12}}>Dimensiones de la cubierta</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
