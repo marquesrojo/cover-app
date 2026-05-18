@@ -22,6 +22,7 @@ function NuevaObraForm({onCreated,onCancel}){
   const [contractor,setContractor]=useState('')
   const [plannedStart,setPlannedStart]=useState('')
   const [plannedEnd,setPlannedEnd]=useState('')
+  const [actualStart,setActualStart]=useState('')
   const [fotosUrl,setFotosUrl]=useState('')
   const [hitos,setHitos]=useState([{title:'Inicio de obra',planned_date:''},{title:'Finalizacion',planned_date:''}])
   const [saving,setSaving]=useState(false)
@@ -40,6 +41,7 @@ function NuevaObraForm({onCreated,onCancel}){
     const {data:obra,error:e}=await supabase.from('obras').insert({
       plant_id:plantId,ticket_id:ticketId||null,title,description,type,contractor,
       planned_start:plannedStart||null,planned_end:plannedEnd||null,
+      actual_start:actualStart||null,
       fotos_url:fotosUrl||null,
       status:'planificada',created_by:user.id
     }).select().single()
@@ -65,6 +67,7 @@ function NuevaObraForm({onCreated,onCancel}){
         <Input label="Inicio planificado" type="date" value={plannedStart} onChange={setPlannedStart}/>
         <Input label="Fin planificado" type="date" value={plannedEnd} onChange={setPlannedEnd}/>
       </div>
+      <Input label="Inicio real (opcional)" type="date" value={actualStart} onChange={setActualStart}/>
       <div style={{marginBottom:14}}>
         <Input label="Link carpeta de fotos (Drive/Dropbox/etc)" value={fotosUrl} onChange={setFotosUrl} placeholder="https://drive.google.com/..."/>
         <div style={{fontSize:11,color:C.muted,marginTop:4}}>El operario podra acceder a esta carpeta desde el parte diario para subir fotos.</div>
@@ -87,7 +90,7 @@ function NuevaObraForm({onCreated,onCancel}){
   )
 }
 
-function NuevoParteForm({obraId,fotosUrl,onCreated,onCancel}){
+function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel}){
   const {user}=useAuth()
   const fileInputRef=useRef()
   const [date,setDate]=useState(new Date().toISOString().split('T')[0])
@@ -97,6 +100,7 @@ function NuevoParteForm({obraId,fotosUrl,onCreated,onCancel}){
   const [progressPct,setProgressPct]=useState('0')
   const [notes,setNotes]=useState('')
   const [weather,setWeather]=useState('')
+  const [responsable,setResponsable]=useState(responsableDefault||'')
   const [photos,setPhotos]=useState([])
   const [saving,setSaving]=useState(false)
 
@@ -121,11 +125,11 @@ function NuevoParteForm({obraId,fotosUrl,onCreated,onCancel}){
     const {data:parte,error}=await supabase.from('obra_partes').insert({
       obra_id:obraId,date,work_types:workTypes,
       workers_count:Number(workersCount),hours_worked:Number(hoursWorked),
-      progress_pct:Number(progressPct),notes,weather:weather||null,created_by:user.id
+      progress_pct:Number(progressPct),notes,weather:weather||null,
+      responsable:responsable||null,
+      created_by:user.id
     }).select().single()
     if(error){alert(error.message);setSaving(false);return}
-
-    // Subir múltiples fotos
     for(const photo of photos){
       try{
         const path=`${obraId}/${parte.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
@@ -136,7 +140,6 @@ function NuevoParteForm({obraId,fotosUrl,onCreated,onCancel}){
         }
       }catch(e){console.error(e)}
     }
-
     await supabase.from('obras').update({status:'en_curso',updated_at:new Date().toISOString()}).eq('id',obraId)
     setSaving(false);onCreated()
   }
@@ -146,6 +149,7 @@ function NuevoParteForm({obraId,fotosUrl,onCreated,onCancel}){
       <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button>
       <div style={{fontSize:18,fontWeight:600,marginBottom:20}}>Nuevo Parte Diario</div>
       <Input label="Fecha" type="date" value={date} onChange={setDate}/>
+      <Input label="Responsable del parte" value={responsable} onChange={setResponsable} placeholder="Nombre del responsable en obra"/>
       <div style={{marginBottom:14}}>
         <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Tipos de trabajo</div>
         <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
@@ -172,12 +176,8 @@ function NuevoParteForm({obraId,fotosUrl,onCreated,onCancel}){
         </div>
       </div>
       <TextArea label="Notas del dia" value={notes} onChange={setNotes} placeholder="Descripcion de trabajos realizados, inconvenientes, observaciones..." rows={4}/>
-
-      {/* Fotos múltiples */}
       <div style={{marginBottom:16}}>
-        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>
-          Fotos del avance ({photos.length})
-        </div>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Fotos del avance ({photos.length})</div>
         <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleFileSelect}/>
         <button onClick={()=>fileInputRef.current?.click()} style={{width:'100%',background:C.amber+'22',border:`1.5px dashed ${C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:C.amber,cursor:'pointer',marginBottom:10}}>
           + AGREGAR FOTOS
@@ -193,21 +193,17 @@ function NuevoParteForm({obraId,fotosUrl,onCreated,onCancel}){
           </div>
         )}
       </div>
-
-      {/* Link carpeta fotos */}
       {fotosUrl&&(
         <a href={fotosUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:C.blue+'22',border:`1px solid ${C.blue}44`,color:C.blue,borderRadius:8,padding:'12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,textDecoration:'none',marginBottom:16}}>
           ABRIR CARPETA DE FOTOS COMPARTIDA
         </a>
       )}
-
       <Btn full onClick={save} disabled={saving}>{saving?`GUARDANDO${photos.length>0?` (${photos.length} fotos)`:''}...`:'GUARDAR PARTE DIARIO'}</Btn>
     </div>
   )
 }
 
 function ObraDetail({obraId,onBack}){
-  const navigate=useNavigate()
   const {user}=useAuth()
   const [obra,setObra]=useState(null)
   const [partes,setPartes]=useState([])
@@ -215,6 +211,9 @@ function ObraDetail({obraId,onBack}){
   const [fotos,setFotos]=useState([])
   const [loading,setLoading]=useState(true)
   const [showNuevoParte,setShowNuevoParte]=useState(false)
+  const [editingActualStart,setEditingActualStart]=useState(false)
+  const [actualStart,setActualStart]=useState('')
+  const [savingDate,setSavingDate]=useState(false)
 
   useEffect(()=>{loadData()},[obraId])
 
@@ -226,8 +225,20 @@ function ObraDetail({obraId,onBack}){
       supabase.from('obra_hitos').select('*').eq('obra_id',obraId).order('order_index'),
       supabase.from('obra_fotos').select('*').eq('obra_id',obraId).order('uploaded_at',{ascending:false}),
     ])
-    setObra(o.data);setPartes(p.data||[]);setHitos(h.data||[]);setFotos(f.data||[])
+    setObra(o.data)
+    setActualStart(o.data?.actual_start||'')
+    setPartes(p.data||[])
+    setHitos(h.data||[])
+    setFotos(f.data||[])
     setLoading(false)
+  }
+
+  async function saveActualStart(){
+    setSavingDate(true)
+    await supabase.from('obras').update({actual_start:actualStart||null}).eq('id',obraId)
+    setObra(prev=>({...prev,actual_start:actualStart}))
+    setEditingActualStart(false)
+    setSavingDate(false)
   }
 
   const toggleHito=async(hito)=>{
@@ -236,13 +247,19 @@ function ObraDetail({obraId,onBack}){
   }
 
   const changeStatus=async(status)=>{
-    await supabase.from('obras').update({status,updated_at:new Date().toISOString(),...(status==='finalizada'?{actual_end:new Date().toISOString().split('T')[0]}:{}),...(status==='en_curso'&&!obra.actual_start?{actual_start:new Date().toISOString().split('T')[0]}:{})}).eq('id',obraId)
+    await supabase.from('obras').update({status,updated_at:new Date().toISOString(),...(status==='finalizada'?{actual_end:new Date().toISOString().split('T')[0]}:{})}).eq('id',obraId)
     setObra(prev=>({...prev,status}))
   }
 
   if(loading)return<Spinner/>
   if(!obra)return<div style={{padding:24,color:C.muted}}>Obra no encontrada</div>
-  if(showNuevoParte)return<NuevoParteForm obraId={obraId} fotosUrl={obra.fotos_url} onCreated={()=>{setShowNuevoParte(false);loadData()}} onCancel={()=>setShowNuevoParte(false)}/>
+  if(showNuevoParte)return<NuevoParteForm
+    obraId={obraId}
+    fotosUrl={obra.fotos_url}
+    responsableDefault={obra.contractor||''}
+    onCreated={()=>{setShowNuevoParte(false);loadData()}}
+    onCancel={()=>setShowNuevoParte(false)}
+  />
 
   const lastProgress=partes.length>0?partes[0].progress_pct:0
   const totalDays=partes.length
@@ -288,19 +305,43 @@ function ObraDetail({obraId,onBack}){
         </div>
       </div>
 
-      {(obra.planned_start||obra.planned_end)&&(
-        <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
-          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Cronograma</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            {[['Inicio plan.',obra.planned_start],['Fin plan.',obra.planned_end],['Inicio real',obra.actual_start||'--'],['Fin real',obra.actual_end||'--']].map(([l,v])=>(
-              <div key={l}>
-                <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>{l}</div>
-                <div style={{fontSize:13,color:C.text,marginTop:2}}>{v||'--'}</div>
+      {/* Cronograma con inicio real editable */}
+      <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Cronograma</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          {[['Inicio plan.',obra.planned_start||'--'],['Fin plan.',obra.planned_end||'--']].map(([l,v])=>(
+            <div key={l}>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>{l}</div>
+              <div style={{fontSize:13,color:C.text,marginTop:2}}>{v}</div>
+            </div>
+          ))}
+          <div>
+            <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:4}}>Inicio real</div>
+            {editingActualStart?(
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <input type="date" value={actualStart} onChange={e=>setActualStart(e.target.value)}
+                  style={{background:C.surface,border:`1px solid ${C.amber}`,borderRadius:6,padding:'4px 8px',color:C.text,fontSize:12,outline:'none',flex:1}}/>
+                <button onClick={saveActualStart} disabled={savingDate}
+                  style={{background:C.amber,color:C.bg,border:'none',borderRadius:6,padding:'4px 8px',fontFamily:'IBM Plex Mono',fontSize:9,fontWeight:700,cursor:'pointer'}}>
+                  {savingDate?'...':'OK'}
+                </button>
+                <button onClick={()=>setEditingActualStart(false)}
+                  style={{background:'none',border:'none',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>✕</button>
               </div>
-            ))}
+            ):(
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <span style={{fontSize:13,color:C.text}}>{obra.actual_start||'--'}</span>
+                <button onClick={()=>setEditingActualStart(true)}
+                  style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>EDITAR</button>
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>Fin real</div>
+            <div style={{fontSize:13,color:C.text,marginTop:2}}>{obra.actual_end||'--'}</div>
           </div>
         </div>
-      )}
+      </div>
 
       {hitos.length>0&&(
         <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
@@ -328,10 +369,12 @@ function ObraDetail({obraId,onBack}){
         </div>
       </div>
 
+      {/* Legajo en nueva pestaña */}
       <div style={{marginBottom:12}}>
-        <button onClick={()=>navigate(`/obras/legajo/${obraId}`)} style={{width:'100%',background:C.blue,color:'#fff',border:'none',borderRadius:8,padding:'12px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,cursor:'pointer'}}>
-          VER LEGAJO DE OBRA
-        </button>
+        <a href={`/obras/legajo/${obraId}`} target="_blank" rel="noreferrer"
+          style={{display:'block',width:'100%',background:C.blue,color:'#fff',border:'none',borderRadius:8,padding:'12px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,cursor:'pointer',textDecoration:'none',textAlign:'center',boxSizing:'border-box'}}>
+          VER LEGAJO DE OBRA ↗
+        </a>
       </div>
 
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
@@ -344,9 +387,13 @@ function ObraDetail({obraId,onBack}){
       ):(
         partes.map((p,i)=>{
           const parteUrl=`${window.location.origin}/obras/parte/${p.id}`
-          const whatsappText=encodeURIComponent(`Parte diario de obra\nFecha: ${p.date}\nAvance: ${p.progress_pct}%\nVer detalle: ${parteUrl}`)
-          const whatsappUrl=`https://wa.me/?text=${whatsappText}`
+          const shareText=`Parte diario\nObra: ${obra.title}\nFecha: ${p.date}\nAvance: ${p.progress_pct}%`
+          const whatsappUrl=`https://wa.me/?text=${encodeURIComponent(shareText+'\n\nVer detalle: '+parteUrl)}`
           const parteFotos=fotos.filter(f=>f.parte_id===p.id)
+          const handleShare=async()=>{
+            if(navigator.share){try{await navigator.share({title:'Parte Diario',text:shareText,url:parteUrl})}catch(e){}}
+            else{window.open(whatsappUrl,'_blank')}
+          }
           return(
             <div key={p.id} style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:8,animation:`fadeIn ${0.3+i*0.05}s ease`}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -356,6 +403,7 @@ function ObraDetail({obraId,onBack}){
                   <Badge color={C.green} small>{p.progress_pct}%</Badge>
                 </div>
               </div>
+              {p.responsable&&<div className="mono" style={{fontSize:10,color:C.muted,marginBottom:6}}>Responsable: {p.responsable}</div>}
               {p.work_types?.length>0&&(
                 <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
                   {p.work_types.map(t=><span key={t} style={{background:C.amber+'22',color:C.amber,border:`1px solid ${C.amber}44`,borderRadius:3,padding:'2px 6px',fontSize:9,fontFamily:'IBM Plex Mono'}}>{t}</span>)}
@@ -373,9 +421,9 @@ function ObraDetail({obraId,onBack}){
                   ))}
                 </div>
               )}
-              <a href={whatsappUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:'#25D366',color:'#fff',borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,textDecoration:'none',marginTop:8}}>
+              <button onClick={handleShare} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:'#25D366',color:'#fff',borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,border:'none',width:'100%',marginTop:8,cursor:'pointer'}}>
                 COMPARTIR PARTE POR WHATSAPP
-              </a>
+              </button>
             </div>
           )
         })
@@ -385,7 +433,6 @@ function ObraDetail({obraId,onBack}){
 }
 
 export default function ObrasScreen(){
-  const navigate=useNavigate()
   const [obras,setObras]=useState([])
   const [loading,setLoading]=useState(true)
   const [showNueva,setShowNueva]=useState(false)
