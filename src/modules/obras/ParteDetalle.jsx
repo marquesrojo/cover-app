@@ -47,8 +47,21 @@ export default function ParteDetalle(){
   )
 
   const url=window.location.href
-  const whatsappText=encodeURIComponent(`Parte diario de obra\nObra: ${obra?.title||''}\nPlanta: ${obra?.plants?.name||''}\nFecha: ${parte.date}\nAvance: ${parte.progress_pct}%\n\nVer detalle: ${url}`)
-  const whatsappUrl=`https://wa.me/?text=${whatsappText}`
+  const shareTitle='Parte Diario de Obra'
+  const shareText=`Parte diario\nObra: ${obra?.title||''}\nPlanta: ${obra?.plants?.name||''}\nFecha: ${parte.date}\nAvance: ${parte.progress_pct}%`
+  const whatsappUrl=`https://wa.me/?text=${encodeURIComponent(shareText+'\n\nVer detalle: '+url)}`
+
+  const handleShare=async()=>{
+    if(navigator.share){
+      try{
+        await navigator.share({title:shareTitle,text:shareText,url})
+      }catch(e){
+        // Usuario canceló o error
+      }
+    } else {
+      window.open(whatsappUrl,'_blank')
+    }
+  }
 
   return(
     <div style={{background:C.bg,minHeight:'100vh'}}>
@@ -59,9 +72,9 @@ export default function ParteDetalle(){
           <div style={{width:1,height:16,background:C.border}}/>
           <span className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.1em'}}>PARTE DIARIO</span>
         </div>
-        <a href={whatsappUrl} target="_blank" rel="noreferrer" style={{background:'#25D366',color:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,textDecoration:'none',display:'flex',alignItems:'center',gap:6}}>
+        <button onClick={handleShare} style={{background:'#25D366',color:'#fff',border:'none',borderRadius:8,padding:'8px 14px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,cursor:'pointer'}}>
           COMPARTIR
-        </a>
+        </button>
       </div>
 
       <div style={{maxWidth:480,margin:'0 auto',padding:'16px 16px 40px'}}>
@@ -131,14 +144,14 @@ export default function ParteDetalle(){
           </div>
         )}
 
-        {/* Botón WhatsApp */}
-        <a href={whatsappUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:'#25D366',color:'#fff',borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,letterSpacing:'0.08em',textDecoration:'none',marginBottom:12}}>
+        {/* Botón compartir */}
+        <button onClick={handleShare} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:'#25D366',color:'#fff',borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,letterSpacing:'0.08em',border:'none',width:'100%',marginBottom:12,cursor:'pointer'}}>
           COMPARTIR POR WHATSAPP
-        </a>
+        </button>
 
         {/* Link para copiar */}
         <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:12,textAlign:'center'}}>
-          <div className="mono" style={{fontSize:9,color:C.muted,marginBottom:6}}>O COPIÁ ESTE LINK</div>
+          <div className="mono" style={{fontSize:9,color:C.muted,marginBottom:6}}>O COPIA ESTE LINK</div>
           <div className="mono" style={{fontSize:10,color:C.amber,wordBreak:'break-all',background:C.surface2,padding:'8px 10px',borderRadius:6,cursor:'pointer'}}
             onClick={()=>{navigator.clipboard?.writeText(url);alert('Link copiado!')}}>
             {url}
