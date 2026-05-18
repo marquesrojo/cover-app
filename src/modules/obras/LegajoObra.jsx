@@ -19,11 +19,11 @@ const PrintStyles = () => (
     }
     .legajo {
       font-family: 'Sora', sans-serif;
-      max-width: 900px;
+      max-width: 100%;
       margin: 0 auto;
       background: white;
       color: #111;
-      padding: 40px;
+      padding: 40px 60px;
       line-height: 1.5;
     }
     .legajo h1 { font-family: 'IBM Plex Mono', monospace; font-size: 22px; margin-bottom: 4px; }
@@ -105,6 +105,7 @@ export default function LegajoObra() {
   const workTypeSummary = allWorkTypes.reduce((acc, t) => { acc[t] = (acc[t] || 0) + 1; return acc }, {})
 
   return (
+    <div style={{background:'white',minHeight:'100vh'}}>
     <>
       <PrintStyles />
 
@@ -357,5 +358,6 @@ export default function LegajoObra() {
         </div>
       </div>
     </>
+    </div>
   )
 }
