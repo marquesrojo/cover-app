@@ -19,11 +19,11 @@ const PrintStyles = () => (
     }
     .legajo {
       font-family: 'Sora', sans-serif;
-      max-width: 100%;
+      max-width: 900px;
       margin: 0 auto;
       background: white;
       color: #111;
-      padding: 40px 60px;
+      padding: 40px;
       line-height: 1.5;
     }
     .legajo h1 { font-family: 'IBM Plex Mono', monospace; font-size: 22px; margin-bottom: 4px; }
@@ -49,26 +49,8 @@ const PrintStyles = () => (
     .firma-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
     .firma-line { border-bottom: 1px solid #aaa; height: 50px; margin-bottom: 6px; }
     .firma-label { font-size: 11px; color: #666; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; }
-    .edit-field { border: none; border-bottom: 2px dashed #f5a623; background: #fffbf0; font-family: inherit; font-size: inherit; color: inherit; width: 100%; outline: none; padding: 4px 6px; border-radius: 3px; }
-    .edit-field:focus { background: #fff8e0; border-bottom-color: #c87a00; }
-    @media screen and (max-width: 900px) {
-      .legajo-wrapper {
-        transform: rotate(90deg);
-        transform-origin: left top;
-        width: 100vh;
-        min-height: 100vw;
-        position: absolute;
-        top: 0;
-        left: 100%;
-        padding: 30px 40px;
-      }
-      .legajo-outer {
-        width: 100vw;
-        height: 100vh;
-        overflow: hidden;
-        position: relative;
-      }
-    }
+    .edit-field { border: none; border-bottom: 1px dashed #ccc; background: transparent; font-family: inherit; font-size: inherit; color: inherit; width: 100%; outline: none; padding: 2px 0; }
+    .edit-field:focus { border-bottom-color: #f5a623; }
   `}</style>
 )
 
@@ -123,7 +105,7 @@ export default function LegajoObra() {
   const workTypeSummary = allWorkTypes.reduce((acc, t) => { acc[t] = (acc[t] || 0) + 1; return acc }, {})
 
   return (
-    <div style={{background:'white',minHeight:'100vh'}}>
+    <>
       <PrintStyles />
 
       {/* Barra de acción */}
@@ -139,8 +121,7 @@ export default function LegajoObra() {
       </div>
 
       {/* LEGAJO */}
-      <div className="legajo-outer">
-      <div className="legajo legajo-wrapper">
+      <div className="legajo">
 
         {/* PORTADA */}
         <div className="header-bar">
@@ -375,7 +356,6 @@ export default function LegajoObra() {
           <span>Legajo generado el {emitDate}</span>
         </div>
       </div>
-      </div>
-    </div>
+    </>
   )
 }
