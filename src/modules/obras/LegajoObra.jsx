@@ -19,11 +19,11 @@ const PrintStyles = () => (
     }
     .legajo {
       font-family: 'Sora', sans-serif;
-      max-width: 900px;
+      max-width: 100%;
       margin: 0 auto;
       background: white;
       color: #111;
-      padding: 40px;
+      padding: 40px 60px;
       line-height: 1.5;
     }
     .legajo h1 { font-family: 'IBM Plex Mono', monospace; font-size: 22px; margin-bottom: 4px; }
@@ -49,8 +49,26 @@ const PrintStyles = () => (
     .firma-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
     .firma-line { border-bottom: 1px solid #aaa; height: 50px; margin-bottom: 6px; }
     .firma-label { font-size: 11px; color: #666; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; }
-    .edit-field { border: none; border-bottom: 1px dashed #ccc; background: transparent; font-family: inherit; font-size: inherit; color: inherit; width: 100%; outline: none; padding: 2px 0; }
-    .edit-field:focus { border-bottom-color: #f5a623; }
+    .edit-field { border: none; border-bottom: 2px dashed #f5a623; background: #fffbf0; font-family: inherit; font-size: inherit; color: inherit; width: 100%; outline: none; padding: 4px 6px; border-radius: 3px; }
+    .edit-field:focus { background: #fff8e0; border-bottom-color: #c87a00; }
+    @media screen and (max-width: 900px) {
+      .legajo-wrapper {
+        transform: rotate(90deg);
+        transform-origin: left top;
+        width: 100vh;
+        min-height: 100vw;
+        position: absolute;
+        top: 0;
+        left: 100%;
+        padding: 30px 40px;
+      }
+      .legajo-outer {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        position: relative;
+      }
+    }
   `}</style>
 )
 
@@ -105,7 +123,7 @@ export default function LegajoObra() {
   const workTypeSummary = allWorkTypes.reduce((acc, t) => { acc[t] = (acc[t] || 0) + 1; return acc }, {})
 
   return (
-    <>
+    <div style={{background:'white',minHeight:'100vh'}}>
       <PrintStyles />
 
       {/* Barra de acción */}
@@ -121,7 +139,8 @@ export default function LegajoObra() {
       </div>
 
       {/* LEGAJO */}
-      <div className="legajo">
+      <div className="legajo-outer">
+      <div className="legajo legajo-wrapper">
 
         {/* PORTADA */}
         <div className="header-bar">
@@ -249,68 +268,64 @@ export default function LegajoObra() {
           <>
             <div className="page-break" />
             <h2>Partes Diarios de Avance</h2>
-            <table style={{ fontSize: 11 }}>
-              <colgroup>
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '22%' }} />
-                <col style={{ width: '7%' }} />
-                <col style={{ width: '7%' }} />
-                <col style={{ width: '7%' }} />
-                <col style={{ width: '7%' }} />
-                <col style={{ width: '20%' }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Trabajos realizados</th>
-                  <th>Notas</th>
-                  <th style={{ textAlign: 'center' }}>Operarios</th>
-                  <th style={{ textAlign: 'center' }}>Horas</th>
-                  <th style={{ textAlign: 'center' }}>Avance</th>
-                  <th>Clima</th>
-                  <th>Responsable</th>
-                </tr>
-              </thead>
-              <tbody>
-                {partes.map(p => (
-                  <tr key={p.id}>
-                    <td style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, whiteSpace: 'nowrap' }}>{p.date}</td>
-                    <td style={{ fontSize: 11 }}>{(p.work_types || []).join(', ') || '—'}</td>
-                    <td style={{ fontSize: 10, color: '#666' }}>{p.notes || '—'}</td>
-                    <td style={{ textAlign: 'center', fontFamily: 'IBM Plex Mono' }}>{p.workers_count}</td>
-                    <td style={{ textAlign: 'center', fontFamily: 'IBM Plex Mono' }}>{p.hours_worked}hs</td>
-                    <td style={{ textAlign: 'center', fontFamily: 'IBM Plex Mono', fontWeight: 700, color: '#f5a623' }}>{p.progress_pct}%</td>
-                    <td style={{ fontSize: 10 }}>{p.weather || '—'}</td>
-                    <td>
-                      <input
-                        type="text"
-                        value={editResponsables[p.id] || ''}
-                        onChange={e => setEditResponsables(prev => ({ ...prev, [p.id]: e.target.value }))}
-                        className="edit-field"
-                        placeholder="Responsable..."
-                        style={{ fontSize: 11 }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Totales */}
-            <table>
-              <tbody>
-                <tr style={{ background: '#fff8ee' }}>
-                  <td style={{ fontWeight: 700, fontFamily: 'IBM Plex Mono', fontSize: 11, width: '30%' }}>TOTALES</td>
-                  <td style={{ width: '22%' }} />
-                  <td style={{ width: '22%' }} />
-                  <td style={{ textAlign: 'center', fontFamily: 'IBM Plex Mono', fontWeight: 700, width: '7%' }}>{totalWorkers}</td>
-                  <td style={{ textAlign: 'center', fontFamily: 'IBM Plex Mono', fontWeight: 700, width: '7%' }}>{totalHours}hs</td>
-                  <td style={{ textAlign: 'center', fontFamily: 'IBM Plex Mono', fontWeight: 700, color: '#f5a623', width: '7%' }}>{lastProgress}%</td>
-                  <td style={{ width: '27%' }} />
-                </tr>
-              </tbody>
-            </table>
+            {partes.map((p, i) => (
+              <div key={p.id} style={{ border: '1px solid #eee', borderRadius: 6, padding: '12px 14px', marginBottom: 10, pageBreakInside: 'avoid' }}>
+                {/* Header del parte */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #f0f0f0' }}>
+                  <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 13, fontWeight: 700, color: '#111' }}>
+                    Parte #{i + 1} — {p.date}
+                  </div>
+                  <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 14, fontWeight: 700, color: '#f5a623' }}>{p.progress_pct}%</span>
+                </div>
+                {/* Datos en filas */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px 16px', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 2 }}>Operarios</div>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.workers_count}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 2 }}>Horas</div>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.hours_worked}hs</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 2 }}>Clima</div>
+                    <div style={{ fontSize: 12 }}>{p.weather || '—'}</div>
+                  </div>
+                </div>
+                {(p.work_types || []).length > 0 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 3 }}>Trabajos realizados</div>
+                    <div style={{ fontSize: 12 }}>{(p.work_types || []).join(' · ')}</div>
+                  </div>
+                )}
+                {p.notes && (
+                  <div style={{ marginBottom: 6 }}>
+                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 3 }}>Notas</div>
+                    <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5 }}>{p.notes}</div>
+                  </div>
+                )}
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginRight: 6 }}>Responsable:</span>
+                    <input
+                      type="text"
+                      value={editResponsables[p.id] || ''}
+                      onChange={e => setEditResponsables(prev => ({ ...prev, [p.id]: e.target.value }))}
+                      className="edit-field"
+                      placeholder="Nombre del responsable..."
+                      style={{ fontSize: 12, maxWidth: 200 }}
+                    />
+                  </div>
+                  <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#aaa' }}>Parte #{i + 1}</div>
+                </div>
+              </div>
+            ))}
+            {/* Totales resumen */}
+            <div style={{ background: '#fff8ee', border: '1px solid #f5a62333', borderRadius: 6, padding: '10px 14px', marginBottom: 10, display: 'flex', gap: 24 }}>
+              <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Total operarios-día: </span><strong>{totalWorkers}</strong></div>
+              <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Total horas: </span><strong>{totalHours}hs</strong></div>
+              <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Avance final: </span><strong style={{ color: '#f5a623' }}>{lastProgress}%</strong></div>
+            </div>
           </>
         )}
 
@@ -356,6 +371,7 @@ export default function LegajoObra() {
           <span>Legajo generado el {emitDate}</span>
         </div>
       </div>
-    </>
+      </div>
+    </div>
   )
 }
