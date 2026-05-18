@@ -51,6 +51,24 @@ const PrintStyles = () => (
     .firma-label { font-size: 11px; color: #666; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; }
     .edit-field { border: none; border-bottom: 2px dashed #f5a623; background: #fffbf0; font-family: inherit; font-size: inherit; color: inherit; width: 100%; outline: none; padding: 4px 6px; border-radius: 3px; }
     .edit-field:focus { background: #fff8e0; border-bottom-color: #c87a00; }
+    @media screen and (max-width: 900px) {
+      .legajo-wrapper {
+        transform: rotate(90deg);
+        transform-origin: left top;
+        width: 100vh;
+        min-height: 100vw;
+        position: absolute;
+        top: 0;
+        left: 100%;
+        padding: 30px 40px;
+      }
+      .legajo-outer {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        position: relative;
+      }
+    }
   `}</style>
 )
 
@@ -121,7 +139,8 @@ export default function LegajoObra() {
       </div>
 
       {/* LEGAJO */}
-      <div className="legajo">
+      <div className="legajo-outer">
+      <div className="legajo legajo-wrapper">
 
         {/* PORTADA */}
         <div className="header-bar">
@@ -355,6 +374,7 @@ export default function LegajoObra() {
           <span>COVER · GRUPO AISLAR · Gestión de Cubiertas Industriales</span>
           <span>Legajo generado el {emitDate}</span>
         </div>
+      </div>
       </div>
     </div>
   )
