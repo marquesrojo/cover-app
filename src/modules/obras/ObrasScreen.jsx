@@ -101,8 +101,14 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
   const [notes,setNotes]=useState('')
   const [weather,setWeather]=useState('')
   const [responsable,setResponsable]=useState(responsableDefault||'')
+  const [usuarios,setUsuarios]=useState([])
   const [photos,setPhotos]=useState([])
   const [saving,setSaving]=useState(false)
+
+  useEffect(()=>{
+    supabase.from('profiles').select('id,full_name').eq('approved',true).eq('role','operario').order('full_name')
+      .then(({data})=>setUsuarios(data||[]))
+  },[])
 
   const toggleWorkType=(t)=>setWorkTypes(prev=>prev.includes(t)?prev.filter(x=>x!==t):[...prev,t])
 
@@ -149,7 +155,8 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
       <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button>
       <div style={{fontSize:18,fontWeight:600,marginBottom:20}}>Nuevo Parte Diario</div>
       <Input label="Fecha" type="date" value={date} onChange={setDate}/>
-      <Input label="Responsable del parte" value={responsable} onChange={setResponsable} placeholder="Nombre del responsable en obra"/>
+      <Select label="Responsable del parte" value={responsable} onChange={setResponsable}
+        options={[{value:'',label:'Seleccionar responsable...'},...usuarios.map(u=>({value:u.full_name,label:u.full_name}))]}/>
       <div style={{marginBottom:14}}>
         <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Tipos de trabajo</div>
         <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
@@ -305,7 +312,6 @@ function ObraDetail({obraId,onBack}){
         </div>
       </div>
 
-      {/* Cronograma con inicio real editable */}
       <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
         <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Cronograma</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
@@ -326,7 +332,7 @@ function ObraDetail({obraId,onBack}){
                   {savingDate?'...':'OK'}
                 </button>
                 <button onClick={()=>setEditingActualStart(false)}
-                  style={{background:'none',border:'none',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>✕</button>
+                  style={{background:'none',border:'none',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>x</button>
               </div>
             ):(
               <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -369,11 +375,10 @@ function ObraDetail({obraId,onBack}){
         </div>
       </div>
 
-      {/* Legajo en nueva pestaña */}
       <div style={{marginBottom:12}}>
         <a href={`/obras/legajo/${obraId}`} target="_blank" rel="noreferrer"
           style={{display:'block',width:'100%',background:C.blue,color:'#fff',border:'none',borderRadius:8,padding:'12px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,cursor:'pointer',textDecoration:'none',textAlign:'center',boxSizing:'border-box'}}>
-          VER LEGAJO DE OBRA ↗
+          VER LEGAJO DE OBRA
         </a>
       </div>
 
