@@ -34,7 +34,8 @@ const PrintStyles = () => (
     .foto-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
     .foto-grid img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
     .foto-caption { font-size: 10px; color: #666; margin-top: 3px; font-family: 'IBM Plex Mono', monospace; }
-    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media print { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
     .kpi-box { border: 1px solid #eee; border-radius: 6px; padding: 12px; text-align: center; }
     .kpi-value { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 700; }
     .kpi-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
