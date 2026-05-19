@@ -11,9 +11,14 @@ const PrintStyles = () => (
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Sora:wght@400;600&display=swap');
     @media print {
       .no-print { display: none !important; }
-      .page-break { page-break-before: always; }
-      body { background: white !important; color: black !important; }
-      .legajo { background: white !important; color: #111 !important; max-width: 100% !important; }
+      body { background: white !important; color: black !important; margin: 0 !important; }
+      .legajo { background: white !important; color: #111 !important; max-width: 100% !important; padding: 20px !important; }
+      nav, header { display: none !important; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .parte-card { page-break-inside: avoid !important; break-inside: avoid !important; }
+      .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
+      .hito-row { page-break-inside: avoid; break-inside: avoid; }
+      .firma-grid { page-break-inside: avoid; break-inside: avoid; }
     }
     .legajo {
       font-family: 'Sora', sans-serif;
@@ -31,11 +36,7 @@ const PrintStyles = () => (
     .legajo td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
     .legajo tr:nth-child(even) td { background: #fafafa; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-    .foto-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
-    .foto-grid img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
-    .foto-caption { font-size: 10px; color: #666; margin-top: 3px; font-family: 'IBM Plex Mono', monospace; }
     .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
-    @media print { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
     .kpi-box { border: 1px solid #eee; border-radius: 6px; padding: 12px; text-align: center; }
     .kpi-value { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 700; }
     .kpi-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
@@ -47,11 +48,13 @@ const PrintStyles = () => (
     .firma-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
     .firma-line { border-bottom: 1px solid #aaa; height: 50px; margin-bottom: 6px; }
     .firma-label { font-size: 11px; color: #666; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; }
-    .parte-card { border: 1px solid #eee; border-radius: 6px; padding: 12px 14px; margin-bottom: 10px; page-break-inside: avoid; }
+    .parte-card { border: 1px solid #eee; border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid; }
     .parte-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; }
     .parte-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; margin-bottom: 8px; }
     .parte-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #888; text-transform: uppercase; margin-bottom: 2px; }
     .parte-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
+    .foto-grid-parte { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+    .foto-grid-parte img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
   `}</style>
 )
 
@@ -97,7 +100,6 @@ export default function LegajoObra() {
     <div style={{ background: 'white', minHeight: '100vh' }}>
       <PrintStyles />
 
-      {/* Barra de acción */}
       <div className="no-print" style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '12px 20px', display: 'flex', gap: 12, alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: C.amber, fontFamily: 'IBM Plex Mono', fontSize: 11, cursor: 'pointer' }}>← VOLVER</button>
         <div style={{ flex: 1 }} />
@@ -108,7 +110,6 @@ export default function LegajoObra() {
 
       <div className="legajo">
 
-        {/* PORTADA */}
         <div className="header-bar">
           <div>
             <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, letterSpacing: '0.2em', color: '#888', textTransform: 'uppercase', marginBottom: 6 }}>GRUPO AISLAR · LEGAJO DE OBRA</div>
@@ -127,7 +128,6 @@ export default function LegajoObra() {
           </div>
         </div>
 
-        {/* DATOS GENERALES */}
         <h2>Datos Generales</h2>
         <table>
           <tbody>
@@ -137,7 +137,6 @@ export default function LegajoObra() {
               ['Superficie', obra.plants?.area_m2 ? `${obra.plants.area_m2.toLocaleString()} m²` : '—'],
               ['Tipo de obra', obra.type || '—'],
               ['Contratista', obra.contractor || '—'],
-              ['Ticket origen', obra.tickets?.title || 'Sin ticket asociado'],
               ['Responsable', obra.profiles?.full_name || '—'],
               ['Inicio planificado', obra.planned_start || '—'],
               ['Fin planificado', obra.planned_end || '—'],
@@ -155,7 +154,6 @@ export default function LegajoObra() {
           </div>
         )}
 
-        {/* RESUMEN EJECUTIVO */}
         <h2>Resumen Ejecutivo</h2>
         <div className="kpi-grid">
           {[
@@ -189,7 +187,6 @@ export default function LegajoObra() {
           </div>
         )}
 
-        {/* CRONOGRAMA E HITOS */}
         {hitos.length > 0 && (
           <>
             <h2>Cronograma e Hitos</h2>
@@ -212,32 +209,19 @@ export default function LegajoObra() {
           </>
         )}
 
-        {/* PARTES DIARIOS — fichas por parte */}
         {partes.length > 0 && (
           <>
-            <div className="page-break" />
             <h2>Partes Diarios de Avance</h2>
             {partes.map((p, i) => (
               <div key={p.id} className="parte-card">
                 <div className="parte-header">
-                  <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 13, fontWeight: 700, color: '#111' }}>
-                    Parte #{i + 1} — {p.date}
-                  </div>
+                  <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 13, fontWeight: 700, color: '#111' }}>Parte #{i + 1} — {p.date}</div>
                   <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 14, fontWeight: 700, color: '#f5a623' }}>{p.progress_pct}%</span>
                 </div>
                 <div className="parte-grid">
-                  <div>
-                    <div className="parte-label">Operarios</div>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.workers_count}</div>
-                  </div>
-                  <div>
-                    <div className="parte-label">Horas</div>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.hours_worked}hs</div>
-                  </div>
-                  <div>
-                    <div className="parte-label">Clima</div>
-                    <div style={{ fontSize: 12 }}>{p.weather || '—'}</div>
-                  </div>
+                  <div><div className="parte-label">Operarios</div><div style={{ fontSize: 12, fontWeight: 600 }}>{p.workers_count}</div></div>
+                  <div><div className="parte-label">Horas</div><div style={{ fontSize: 12, fontWeight: 600 }}>{p.hours_worked}hs</div></div>
+                  <div><div className="parte-label">Clima</div><div style={{ fontSize: 12 }}>{p.weather || '—'}</div></div>
                 </div>
                 {(p.work_types || []).length > 0 && (
                   <div style={{ marginBottom: 6 }}>
@@ -255,23 +239,19 @@ export default function LegajoObra() {
                   <span className="parte-label">Responsable: </span>
                   <span style={{ fontSize: 12 }}>{p.responsable || '—'}</span>
                 </div>
-                {/* Fotos del parte */}
                 {fotos.filter(f => f.parte_id === p.id).length > 0 && (
                   <div style={{ marginTop: 10 }}>
                     <div className="parte-label" style={{ marginBottom: 6 }}>Fotos ({fotos.filter(f => f.parte_id === p.id).length})</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    <div className="foto-grid-parte">
                       {fotos.filter(f => f.parte_id === p.id).map(f => (
-                        <div key={f.id}>
-                          <img src={f.public_url} alt="" onError={e => e.target.style.display = 'none'}
-                            style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 4, border: '1px solid #ddd' }} />
-                        </div>
+                        <img key={f.id} src={f.public_url} alt="" onError={e => e.target.style.display = 'none'} />
                       ))}
                     </div>
                   </div>
                 )}
               </div>
             ))}
-            <div style={{ background: '#fff8ee', border: '1px solid #f5a62333', borderRadius: 6, padding: '10px 14px', marginBottom: 10, display: 'flex', gap: 24 }}>
+            <div style={{ background: '#fff8ee', border: '1px solid #f5a62333', borderRadius: 6, padding: '10px 14px', marginBottom: 20, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Total operarios-día: </span><strong>{totalWorkers}</strong></div>
               <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Total horas: </span><strong>{totalHours}hs</strong></div>
               <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Avance final: </span><strong style={{ color: '#f5a623' }}>{lastProgress}%</strong></div>
@@ -279,8 +259,6 @@ export default function LegajoObra() {
           </>
         )}
 
-        {/* FIRMAS Y CIERRE */}
-        <div className="page-break" />
         <h2>Conformidad y Cierre</h2>
         <div style={{ fontSize: 13, color: '#555', marginBottom: 20 }}>
           El presente legajo certifica la ejecución de los trabajos descritos en la obra <strong>{obra.title}</strong>, correspondiente a la instalación <strong>{obra.plants?.name}</strong>.
