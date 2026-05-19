@@ -8,11 +8,10 @@ import InspeccionScreen, { InspectionDetail, InspeccionList } from '@/modules/in
 import ObrasScreen from '@/modules/obras/ObrasScreen'
 import LegajoObra from '@/modules/obras/LegajoObra'
 import ParteDetalle from '@/modules/obras/ParteDetalle'
-import CalendarioScreen from '@/modules/calendario/CalendarioScreen'
+import GestionScreen from '@/modules/gestion/GestionScreen'
 import AdminScreen from '@/modules/admin/AdminScreen'
 import { Spinner } from '@/components/ui'
 
-// Pantalla de espera de aprobación
 function PendingApprovalScreen({ onSignOut }) {
   return (
     <div style={{ minHeight: '100vh', background: '#07090f', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -62,17 +61,21 @@ export default function App() {
       <Route path="/obras/parte/:id" element={<ParteDetalle />} />
       <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard"        element={<DashboardScreen />} />
-        <Route path="gemelo"           element={<GemelScreen />} />
-        <Route path="gemelo/:plantId"  element={<GemelScreen />} />
-        <Route path="inspeccion/lista" element={<InspeccionList />} />
-        <Route path="inspeccion/nueva" element={<InspeccionScreen />} />
-        <Route path="inspeccion/:id"   element={<InspectionDetail />} />
-        <Route path="obras"            element={<ObrasScreen />} />
-        <Route path="obras/legajo/:id" element={<LegajoObra />} />
-        <Route path="calendario"       element={<CalendarioScreen />} />
-        <Route path="admin"            element={<AdminScreen />} />
-        <Route path="*"                element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard"              element={<DashboardScreen />} />
+        <Route path="gemelo"                 element={<GemelScreen />} />
+        <Route path="gemelo/:plantId"        element={<GemelScreen />} />
+        <Route path="gestion"                element={<GestionScreen />} />
+        <Route path="gestion/inspeccion/nueva" element={<InspeccionScreen />} />
+        <Route path="gestion/inspeccion/:id"   element={<InspectionDetail />} />
+        <Route path="obras"                  element={<ObrasScreen />} />
+        <Route path="obras/legajo/:id"       element={<LegajoObra />} />
+        {/* Redirecciones de rutas viejas */}
+        <Route path="inspeccion/lista"       element={<Navigate to="/gestion" replace />} />
+        <Route path="inspeccion/nueva"       element={<Navigate to="/gestion/inspeccion/nueva" replace />} />
+        <Route path="inspeccion/:id"         element={<Navigate to="/gestion" replace />} />
+        <Route path="calendario"             element={<Navigate to="/gestion" replace />} />
+        <Route path="admin"                  element={<AdminScreen />} />
+        <Route path="*"                      element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
   )
