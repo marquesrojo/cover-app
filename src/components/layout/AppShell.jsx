@@ -5,8 +5,7 @@ import { C } from '@/styles/tokens'
 const TABS=[
   {path:'/dashboard',icon:'▦',label:'DASHBOARD'},
   {path:'/gemelo',icon:'◫',label:'CUBIERTAS'},
-  {path:'/calendario',icon:'📅',label:'PLAN'},
-  {path:'/inspeccion/lista',icon:'✓',label:'GESTION'},
+  {path:'/gestion',icon:'✓',label:'GESTIÓN'},
   {path:'/obras',icon:'🔨',label:'OBRAS'},
 ]
 
