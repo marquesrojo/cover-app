@@ -14,24 +14,21 @@ const PrintStyles = () => (
       .page-break { page-break-before: always; }
       body { background: white !important; color: black !important; }
       .legajo { background: white !important; color: #111 !important; max-width: 100% !important; }
-      @page { size: A4 landscape; margin: 15mm; }
-      @page :first { size: A4 portrait; margin: 20mm; }
     }
     .legajo {
       font-family: 'Sora', sans-serif;
-      max-width: 100%;
+      max-width: 800px;
       margin: 0 auto;
       background: white;
       color: #111;
-      padding: 40px 60px;
+      padding: 40px;
       line-height: 1.5;
     }
     .legajo h1 { font-family: 'IBM Plex Mono', monospace; font-size: 22px; margin-bottom: 4px; }
     .legajo h2 { font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: #555; border-bottom: 2px solid #f5a623; padding-bottom: 6px; margin: 28px 0 14px; }
-    .legajo h3 { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-    .legajo table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 16px; table-layout: fixed; }
-    .legajo th { background: #f5a623; color: white; font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 8px; text-align: left; }
-    .legajo td { padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; word-wrap: break-word; }
+    .legajo table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+    .legajo th { background: #f5a623; color: white; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 10px; text-align: left; }
+    .legajo td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
     .legajo tr:nth-child(even) td { background: #fafafa; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
     .foto-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
@@ -49,26 +46,11 @@ const PrintStyles = () => (
     .firma-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
     .firma-line { border-bottom: 1px solid #aaa; height: 50px; margin-bottom: 6px; }
     .firma-label { font-size: 11px; color: #666; font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; }
-    .edit-field { border: none; border-bottom: 2px dashed #f5a623; background: #fffbf0; font-family: inherit; font-size: inherit; color: inherit; width: 100%; outline: none; padding: 4px 6px; border-radius: 3px; }
-    .edit-field:focus { background: #fff8e0; border-bottom-color: #c87a00; }
-    @media screen and (max-width: 900px) {
-      .legajo-wrapper {
-        transform: rotate(90deg);
-        transform-origin: left top;
-        width: 100vh;
-        min-height: 100vw;
-        position: absolute;
-        top: 0;
-        left: 100%;
-        padding: 30px 40px;
-      }
-      .legajo-outer {
-        width: 100vw;
-        height: 100vh;
-        overflow: hidden;
-        position: relative;
-      }
-    }
+    .parte-card { border: 1px solid #eee; border-radius: 6px; padding: 12px 14px; margin-bottom: 10px; page-break-inside: avoid; }
+    .parte-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; }
+    .parte-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; margin-bottom: 8px; }
+    .parte-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: #888; text-transform: uppercase; margin-bottom: 2px; }
+    .parte-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
   `}</style>
 )
 
@@ -80,10 +62,6 @@ export default function LegajoObra() {
   const [hitos, setHitos] = useState([])
   const [fotos, setFotos] = useState([])
   const [loading, setLoading] = useState(true)
-
-  // Campos editables
-  const [editInicioReal, setEditInicioReal] = useState('')
-  const [editResponsables, setEditResponsables] = useState({}) // {parteId: nombre}
 
   useEffect(() => {
     async function load() {
@@ -97,13 +75,6 @@ export default function LegajoObra() {
       setPartes(p.data || [])
       setHitos(h.data || [])
       setFotos(f.data || [])
-      setEditInicioReal(o.data?.actual_start || '')
-      // Inicializar responsables con el responsable general
-      const initResp = {}
-      ;(p.data || []).forEach(parte => {
-        initResp[parte.id] = parte.responsable || o.data?.profiles?.full_name || ''
-      })
-      setEditResponsables(initResp)
       setLoading(false)
     }
     load()
@@ -118,29 +89,23 @@ export default function LegajoObra() {
   const lastProgress = partes.length > 0 ? partes[partes.length - 1].progress_pct : 0
   const hitosCompleted = hitos.filter(h => h.completed).length
   const emitDate = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
-
   const allWorkTypes = partes.flatMap(p => p.work_types || [])
   const workTypeSummary = allWorkTypes.reduce((acc, t) => { acc[t] = (acc[t] || 0) + 1; return acc }, {})
 
   return (
-    <div style={{background:'white',minHeight:'100vh'}}>
+    <div style={{ background: 'white', minHeight: '100vh' }}>
       <PrintStyles />
 
       {/* Barra de acción */}
       <div className="no-print" style={{ background: C.surface, borderBottom: `1px solid ${C.border}`, padding: '12px 20px', display: 'flex', gap: 12, alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: C.amber, fontFamily: 'IBM Plex Mono', fontSize: 11, cursor: 'pointer' }}>← VOLVER</button>
         <div style={{ flex: 1 }} />
-        <div className="no-print" style={{ fontSize: 11, color: C.muted, fontFamily: 'IBM Plex Mono' }}>
-          Podés editar fecha de inicio y responsables antes de imprimir
-        </div>
         <button onClick={() => window.print()} style={{ background: C.amber, color: C.bg, border: 'none', borderRadius: 8, padding: '10px 20px', fontFamily: 'IBM Plex Mono', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
           🖨 IMPRIMIR / GUARDAR PDF
         </button>
       </div>
 
-      {/* LEGAJO */}
-      <div className="legajo-outer">
-      <div className="legajo legajo-wrapper">
+      <div className="legajo">
 
         {/* PORTADA */}
         <div className="header-bar">
@@ -172,28 +137,14 @@ export default function LegajoObra() {
               ['Tipo de obra', obra.type || '—'],
               ['Contratista', obra.contractor || '—'],
               ['Ticket origen', obra.tickets?.title || 'Sin ticket asociado'],
+              ['Responsable', obra.profiles?.full_name || '—'],
               ['Inicio planificado', obra.planned_start || '—'],
               ['Fin planificado', obra.planned_end || '—'],
-              ['Responsable', obra.profiles?.full_name || '—'],
+              ['Inicio real', obra.actual_start || '—'],
+              ['Fin real', obra.actual_end || '—'],
             ].map(([k, v]) => (
               <tr key={k}><td style={{ fontWeight: 600, width: '35%', color: '#555' }}>{k}</td><td>{v}</td></tr>
             ))}
-            <tr>
-              <td style={{ fontWeight: 600, width: '35%', color: '#555' }}>Inicio real</td>
-              <td>
-                <input
-                  type="date"
-                  value={editInicioReal}
-                  onChange={e => setEditInicioReal(e.target.value)}
-                  className="edit-field"
-                  style={{ maxWidth: 160 }}
-                />
-              </td>
-            </tr>
-            <tr>
-              <td style={{ fontWeight: 600, width: '35%', color: '#555' }}>Fin real</td>
-              <td>{obra.actual_end || '—'}</td>
-            </tr>
           </tbody>
         </table>
         {obra.description && (
@@ -218,7 +169,6 @@ export default function LegajoObra() {
             </div>
           ))}
         </div>
-
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
             <span>Avance de obra</span><span style={{ fontFamily: 'IBM Plex Mono', fontWeight: 700 }}>{lastProgress}%</span>
@@ -227,7 +177,6 @@ export default function LegajoObra() {
             <div className="progress-bar-inner" style={{ width: `${lastProgress}%` }} />
           </div>
         </div>
-
         {Object.keys(workTypeSummary).length > 0 && (
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Tipos de trabajo realizados</div>
@@ -251,8 +200,7 @@ export default function LegajoObra() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{h.title}</div>
                   <div style={{ fontSize: 11, color: '#888', fontFamily: 'IBM Plex Mono' }}>
-                    Plan: {h.planned_date || '—'}
-                    {h.actual_date && ` · Real: ${h.actual_date}`}
+                    Plan: {h.planned_date || '—'}{h.actual_date && ` · Real: ${h.actual_date}`}
                   </div>
                 </div>
                 <span className="badge" style={{ background: h.completed ? '#22c55e22' : '#eee', color: h.completed ? '#22c55e' : '#888', border: `1px solid ${h.completed ? '#22c55e44' : '#ddd'}` }}>
@@ -263,84 +211,69 @@ export default function LegajoObra() {
           </>
         )}
 
-        {/* PARTES DIARIOS */}
+        {/* PARTES DIARIOS — fichas por parte */}
         {partes.length > 0 && (
           <>
             <div className="page-break" />
             <h2>Partes Diarios de Avance</h2>
             {partes.map((p, i) => (
-              <div key={p.id} style={{ border: '1px solid #eee', borderRadius: 6, padding: '12px 14px', marginBottom: 10, pageBreakInside: 'avoid' }}>
-                {/* Header del parte */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #f0f0f0' }}>
+              <div key={p.id} className="parte-card">
+                <div className="parte-header">
                   <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 13, fontWeight: 700, color: '#111' }}>
                     Parte #{i + 1} — {p.date}
                   </div>
                   <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 14, fontWeight: 700, color: '#f5a623' }}>{p.progress_pct}%</span>
                 </div>
-                {/* Datos en filas */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px 16px', marginBottom: 8 }}>
+                <div className="parte-grid">
                   <div>
-                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 2 }}>Operarios</div>
+                    <div className="parte-label">Operarios</div>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>{p.workers_count}</div>
                   </div>
                   <div>
-                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 2 }}>Horas</div>
+                    <div className="parte-label">Horas</div>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>{p.hours_worked}hs</div>
                   </div>
                   <div>
-                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 2 }}>Clima</div>
+                    <div className="parte-label">Clima</div>
                     <div style={{ fontSize: 12 }}>{p.weather || '—'}</div>
                   </div>
                 </div>
                 {(p.work_types || []).length > 0 && (
                   <div style={{ marginBottom: 6 }}>
-                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 3 }}>Trabajos realizados</div>
+                    <div className="parte-label">Trabajos realizados</div>
                     <div style={{ fontSize: 12 }}>{(p.work_types || []).join(' · ')}</div>
                   </div>
                 )}
                 {p.notes && (
                   <div style={{ marginBottom: 6 }}>
-                    <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginBottom: 3 }}>Notas</div>
+                    <div className="parte-label">Notas</div>
                     <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5 }}>{p.notes}</div>
                   </div>
                 )}
-                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', marginRight: 6 }}>Responsable:</span>
-                    <input
-                      type="text"
-                      value={editResponsables[p.id] || ''}
-                      onChange={e => setEditResponsables(prev => ({ ...prev, [p.id]: e.target.value }))}
-                      className="edit-field"
-                      placeholder="Nombre del responsable..."
-                      style={{ fontSize: 12, maxWidth: 200 }}
-                    />
-                  </div>
-                  <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#aaa' }}>Parte #{i + 1}</div>
+                <div className="parte-footer">
+                  <span className="parte-label">Responsable: </span>
+                  <span style={{ fontSize: 12 }}>{p.responsable || '—'}</span>
                 </div>
+                {/* Fotos del parte */}
+                {fotos.filter(f => f.parte_id === p.id).length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className="parte-label" style={{ marginBottom: 6 }}>Fotos ({fotos.filter(f => f.parte_id === p.id).length})</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {fotos.filter(f => f.parte_id === p.id).map(f => (
+                        <div key={f.id}>
+                          <img src={f.public_url} alt="" onError={e => e.target.style.display = 'none'}
+                            style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', borderRadius: 4, border: '1px solid #ddd' }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
-            {/* Totales resumen */}
             <div style={{ background: '#fff8ee', border: '1px solid #f5a62333', borderRadius: 6, padding: '10px 14px', marginBottom: 10, display: 'flex', gap: 24 }}>
               <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Total operarios-día: </span><strong>{totalWorkers}</strong></div>
               <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Total horas: </span><strong>{totalHours}hs</strong></div>
               <div><span style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase' }}>Avance final: </span><strong style={{ color: '#f5a623' }}>{lastProgress}%</strong></div>
-            </div>
-          </>
-        )}
-
-        {/* REGISTRO FOTOGRÁFICO */}
-        {fotos.length > 0 && (
-          <>
-            <div className="page-break" />
-            <h2>Registro Fotográfico ({fotos.length} fotos)</h2>
-            <div className="foto-grid">
-              {fotos.map(f => (
-                <div key={f.id}>
-                  <img src={f.public_url} alt="" onError={e => e.target.style.display = 'none'} />
-                  <div className="foto-caption">{f.caption || new Date(f.uploaded_at).toLocaleDateString('es-AR')}</div>
-                </div>
-              ))}
             </div>
           </>
         )}
@@ -351,7 +284,7 @@ export default function LegajoObra() {
         <div style={{ fontSize: 13, color: '#555', marginBottom: 20 }}>
           El presente legajo certifica la ejecución de los trabajos descritos en la obra <strong>{obra.title}</strong>, correspondiente a la instalación <strong>{obra.plants?.name}</strong>.
           Avance registrado al {emitDate}: <strong>{lastProgress}%</strong>.
-          {editInicioReal && <span> Inicio real de obra: <strong>{editInicioReal}</strong>.</span>}
+          {obra.actual_start && <span> Inicio real de obra: <strong>{obra.actual_start}</strong>.</span>}
         </div>
         <div className="firma-grid">
           <div>
@@ -364,13 +297,10 @@ export default function LegajoObra() {
             <div className="firma-label">Conformidad del cliente</div>
           </div>
         </div>
-
-        {/* Pie de página */}
         <div style={{ marginTop: 40, paddingTop: 16, borderTop: '1px solid #eee', display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#aaa', fontFamily: 'IBM Plex Mono' }}>
           <span>COVER · GRUPO AISLAR · Gestión de Cubiertas Industriales</span>
           <span>Legajo generado el {emitDate}</span>
         </div>
-      </div>
       </div>
     </div>
   )
