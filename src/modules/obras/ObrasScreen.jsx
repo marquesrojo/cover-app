@@ -5,10 +5,110 @@ import { useAuth } from '@/store/AuthContext'
 import { C, rciColor } from '@/styles/tokens'
 import { Badge, Spinner, Btn, Input, TextArea, Select, PhotoUpload, AlertBanner } from '@/components/ui'
 
+const MAX_FOTOS = 7
 const STATUS={planificada:{color:C.blue,label:'PLANIFICADA'},en_curso:{color:C.amber,label:'EN CURSO'},pausada:{color:C.orange,label:'PAUSADA'},finalizada:{color:C.green,label:'FINALIZADA'}}
 const WORK_TYPES=['Demolicion','Impermeabilizacion','Aplicacion membrana','Soldadura','Sellado','Inspeccion NDT','Limpieza','Otros']
 const WEATHER=['Soleado','Nublado','Lluvia','Viento fuerte']
 const WEATHER_ICON={'Soleado':'Sol','Nublado':'Nub','Lluvia':'Lluv','Viento fuerte':'Viento'}
+
+// ── Modal agregar fotos a parte existente ────────────────────
+function AgregarFotosModal({parte,obraId,fotosExistentes,onClose,onSaved}){
+  const {user}=useAuth()
+  const fileInputRef=useRef()
+  const [photos,setPhotos]=useState([])
+  const [saving,setSaving]=useState(false)
+  const [error,setError]=useState('')
+  const disponibles=MAX_FOTOS-fotosExistentes
+
+  const handleFileSelect=(e)=>{
+    const files=Array.from(e.target.files)
+    const total=photos.length+files.length
+    if(photos.length>=disponibles){
+      setError(`Este parte ya tiene ${fotosExistentes} fotos. Límite máximo: ${MAX_FOTOS}.`)
+      e.target.value=''
+      return
+    }
+    if(total>disponibles){
+      setError(`Podés agregar máximo ${disponibles} foto${disponibles!==1?'s':''} más (límite: ${MAX_FOTOS} por parte).`)
+      const allowed=files.slice(0,disponibles-photos.length)
+      setPhotos(prev=>[...prev,...allowed.map(f=>({file:f,preview:URL.createObjectURL(f)}))])
+    } else {
+      setError('')
+      setPhotos(prev=>[...prev,...files.map(f=>({file:f,preview:URL.createObjectURL(f)}))])
+    }
+    e.target.value=''
+  }
+
+  const removePhoto=(idx)=>{
+    setPhotos(prev=>{
+      URL.revokeObjectURL(prev[idx].preview)
+      return prev.filter((_,i)=>i!==idx)
+    })
+    setError('')
+  }
+
+  const save=async()=>{
+    if(photos.length===0)return
+    setSaving(true);setError('')
+    let uploaded=0
+    for(const photo of photos){
+      try{
+        const path=`${obraId}/${parte.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+        const {error:upErr}=await supabase.storage.from('obra-fotos').upload(path,photo.file)
+        if(upErr){setError(`Error: ${upErr.message}`);continue}
+        const {data:{publicUrl}}=supabase.storage.from('obra-fotos').getPublicUrl(path)
+        await supabase.from('obra_fotos').insert({obra_id:obraId,parte_id:parte.id,storage_path:path,public_url:publicUrl,uploaded_by:user.id})
+        uploaded++
+      }catch(e){console.error(e)}
+    }
+    setSaving(false)
+    if(uploaded>0)onSaved()
+    else setError('No se pudo subir ninguna foto. Intentá de nuevo.')
+  }
+
+  return(
+    <div style={{position:'fixed',inset:0,background:'#000b',zIndex:500,display:'flex',alignItems:'flex-end',justifyContent:'center'}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:480,background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px 12px 0 0',padding:20,maxHeight:'80vh',overflowY:'auto',animation:'slideUp 0.25s ease'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <span className="mono" style={{fontSize:12,fontWeight:700,color:C.amber}}>+ FOTOS — {parte.date}</span>
+          <button onClick={onClose} style={{background:'none',border:'none',color:C.muted,fontSize:18}}>✕</button>
+        </div>
+        <div className="mono" style={{fontSize:10,color:C.muted,marginBottom:14}}>
+          {fotosExistentes} de {MAX_FOTOS} fotos usadas · podés agregar {disponibles} más
+        </div>
+        {error&&<AlertBanner color={C.orange} icon="⚠">{error}</AlertBanner>}
+        {disponibles===0?(
+          <div style={{textAlign:'center',padding:'20px 0',color:C.muted,fontSize:13}}>
+            Este parte ya tiene {MAX_FOTOS} fotos (límite máximo).
+          </div>
+        ):(
+          <>
+            <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleFileSelect}/>
+            <button onClick={()=>fileInputRef.current?.click()} disabled={photos.length>=disponibles}
+              style={{width:'100%',background:photos.length>=disponibles?C.surface2:C.amber+'22',border:`1.5px dashed ${photos.length>=disponibles?C.border:C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:photos.length>=disponibles?C.muted:C.amber,cursor:photos.length>=disponibles?'not-allowed':'pointer',marginBottom:12}}>
+              + SELECCIONAR FOTOS ({photos.length}/{disponibles})
+            </button>
+            {photos.length>0&&(
+              <>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+                  {photos.map((p,i)=>(
+                    <div key={i} style={{position:'relative'}}>
+                      <img src={p.preview} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}}/>
+                      <button onClick={()=>removePhoto(i)} style={{position:'absolute',top:4,right:4,background:'#000a',border:'none',borderRadius:'50%',width:24,height:24,color:'#fff',fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>x</button>
+                    </div>
+                  ))}
+                </div>
+                <Btn full onClick={save} disabled={saving}>
+                  {saving?`SUBIENDO ${photos.length} FOTO${photos.length>1?'S':''}...`:`SUBIR ${photos.length} FOTO${photos.length>1?'S':''}`}
+                </Btn>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function NuevaObraForm({onCreated,onCancel}){
   const {user}=useAuth()
@@ -104,6 +204,7 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
   const [usuarios,setUsuarios]=useState([])
   const [photos,setPhotos]=useState([])
   const [saving,setSaving]=useState(false)
+  const [fotoError,setFotoError]=useState('')
 
   useEffect(()=>{
     supabase.from('profiles').select('id,full_name').eq('approved',true).eq('role','operario').order('full_name')
@@ -114,8 +215,15 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
 
   const handleFileSelect=(e)=>{
     const files=Array.from(e.target.files)
-    const newPhotos=files.map(f=>({file:f,preview:URL.createObjectURL(f)}))
-    setPhotos(prev=>[...prev,...newPhotos])
+    const total=photos.length+files.length
+    if(total>MAX_FOTOS){
+      setFotoError(`Máximo ${MAX_FOTOS} fotos por parte. Tenés ${photos.length} seleccionadas, podés agregar ${MAX_FOTOS-photos.length} más.`)
+      const allowed=files.slice(0,MAX_FOTOS-photos.length)
+      setPhotos(prev=>[...prev,...allowed.map(f=>({file:f,preview:URL.createObjectURL(f)}))])
+    } else {
+      setFotoError('')
+      setPhotos(prev=>[...prev,...files.map(f=>({file:f,preview:URL.createObjectURL(f)}))])
+    }
     e.target.value=''
   }
 
@@ -124,6 +232,7 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
       URL.revokeObjectURL(prev[idx].preview)
       return prev.filter((_,i)=>i!==idx)
     })
+    setFotoError('')
   }
 
   const save=async()=>{
@@ -184,10 +293,15 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
       </div>
       <TextArea label="Notas del dia" value={notes} onChange={setNotes} placeholder="Descripcion de trabajos realizados, inconvenientes, observaciones..." rows={4}/>
       <div style={{marginBottom:16}}>
-        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Fotos del avance ({photos.length})</div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Fotos del avance</div>
+          <span className="mono" style={{fontSize:10,color:photos.length>=MAX_FOTOS?C.orange:C.muted}}>{photos.length}/{MAX_FOTOS}</span>
+        </div>
+        {fotoError&&<AlertBanner color={C.orange} icon="⚠">{fotoError}</AlertBanner>}
         <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleFileSelect}/>
-        <button onClick={()=>fileInputRef.current?.click()} style={{width:'100%',background:C.amber+'22',border:`1.5px dashed ${C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:C.amber,cursor:'pointer',marginBottom:10}}>
-          + AGREGAR FOTOS
+        <button onClick={()=>fileInputRef.current?.click()} disabled={photos.length>=MAX_FOTOS}
+          style={{width:'100%',background:photos.length>=MAX_FOTOS?C.surface2:C.amber+'22',border:`1.5px dashed ${photos.length>=MAX_FOTOS?C.border:C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:photos.length>=MAX_FOTOS?C.muted:C.amber,cursor:photos.length>=MAX_FOTOS?'not-allowed':'pointer',marginBottom:10}}>
+          {photos.length>=MAX_FOTOS?`LÍMITE ALCANZADO (${MAX_FOTOS} fotos)`:'+ AGREGAR FOTOS'}
         </button>
         {photos.length>0&&(
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
@@ -221,6 +335,7 @@ function ObraDetail({obraId,onBack}){
   const [editingActualStart,setEditingActualStart]=useState(false)
   const [actualStart,setActualStart]=useState('')
   const [savingDate,setSavingDate]=useState(false)
+  const [addFotosParte,setAddFotosParte]=useState(null)
 
   useEffect(()=>{loadData()},[obraId])
 
@@ -395,6 +510,7 @@ function ObraDetail({obraId,onBack}){
           const shareText=`Parte diario\nObra: ${obra.title}\nFecha: ${p.date}\nAvance: ${p.progress_pct}%`
           const whatsappUrl=`https://wa.me/?text=${encodeURIComponent(shareText+'\n\nVer detalle: '+parteUrl)}`
           const parteFotos=fotos.filter(f=>f.parte_id===p.id)
+          const fotosCount=parteFotos.length
           const handleShare=async()=>{
             if(navigator.share){try{await navigator.share({title:'Parte Diario',text:shareText,url:parteUrl})}catch(e){}}
             else{window.open(whatsappUrl,'_blank')}
@@ -426,12 +542,28 @@ function ObraDetail({obraId,onBack}){
                   ))}
                 </div>
               )}
-              <button onClick={handleShare} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:'#25D366',color:'#fff',borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,border:'none',width:'100%',marginTop:8,cursor:'pointer'}}>
-                COMPARTIR PARTE POR WHATSAPP
-              </button>
+              <div style={{display:'flex',gap:6,marginTop:8}}>
+                <button onClick={()=>setAddFotosParte(p)}
+                  style={{flex:1,background:fotosCount>=MAX_FOTOS?C.surface:C.surface,border:`1px solid ${fotosCount>=MAX_FOTOS?C.border:C.border}`,borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,color:fotosCount>=MAX_FOTOS?C.muted:C.muted,cursor:'pointer'}}>
+                  📷 {fotosCount}/{MAX_FOTOS}
+                </button>
+                <button onClick={handleShare} style={{flex:2,display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:'#25D366',color:'#fff',borderRadius:6,padding:'8px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,border:'none',cursor:'pointer'}}>
+                  COMPARTIR
+                </button>
+              </div>
             </div>
           )
         })
+      )}
+
+      {addFotosParte&&(
+        <AgregarFotosModal
+          parte={addFotosParte}
+          obraId={obraId}
+          fotosExistentes={fotos.filter(f=>f.parte_id===addFotosParte.id).length}
+          onClose={()=>setAddFotosParte(null)}
+          onSaved={()=>{setAddFotosParte(null);loadData()}}
+        />
       )}
     </div>
   )
