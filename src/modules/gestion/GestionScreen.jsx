@@ -8,7 +8,6 @@ import { Badge, Spinner, Btn, Input, TextArea, Select, AlertBanner, PhotoUpload 
 const SEV={critico:{color:C.red,label:'CRÍTICO'},moderado:{color:C.orange,label:'MODERADO'},leve:{color:C.yellow,label:'LEVE'}}
 const STAT={abierto:{color:C.red,label:'ABIERTO'},en_proceso:{color:C.blue,label:'EN PROCESO'},resuelto:{color:C.green,label:'RESUELTO'}}
 
-// ── Modal editar evento ──────────────────────────────────────
 function EditEventoModal({ticket,onClose,onSaved}){
   const [usuarios,setUsuarios]=useState([])
   const [status,setStatus]=useState(ticket.status)
@@ -73,7 +72,6 @@ function EditEventoModal({ticket,onClose,onSaved}){
   )
 }
 
-// ── Tab Eventos ──────────────────────────────────────────────
 function EventosTab(){
   const {user}=useAuth()
   const [tickets,setTickets]=useState([])
@@ -221,16 +219,20 @@ function EventosTab(){
   )
 }
 
-// ── Tab Inspecciones ─────────────────────────────────────────
 function InspeccionesTab(){
   const navigate=useNavigate()
   const [inspecciones,setInspecciones]=useState([])
   const [loading,setLoading]=useState(true)
 
   useEffect(()=>{
-    supabase.from('inspections').select('*, plants(name), profiles!inspections_created_by_fkey(full_name)')
+    supabase.from('inspections')
+      .select('*, plants(name), profiles!inspections_inspector_id_fkey(full_name)')
       .order('created_at',{ascending:false})
-      .then(({data})=>{setInspecciones(data||[]);setLoading(false)})
+      .then(({data,error})=>{
+        if(error)console.error('inspections query error:',error)
+        setInspecciones(data||[])
+        setLoading(false)
+      })
   },[])
 
   if(loading)return<Spinner/>
@@ -251,7 +253,7 @@ function InspeccionesTab(){
       )}
 
       {inspecciones.map((insp,i)=>{
-        const rci=insp.rci_score??100
+        const rci=insp.rci??insp.rci_score??100
         const color=rciColor(rci)
         return(
           <div key={insp.id} onClick={()=>navigate(`/gestion/inspeccion/${insp.id}`)}
@@ -263,7 +265,7 @@ function InspeccionesTab(){
               </div>
             </div>
             <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-              <span className="mono" style={{fontSize:10,color:C.muted}}>{insp.inspection_type||'—'}</span>
+              <span className="mono" style={{fontSize:10,color:C.muted}}>{insp.type||insp.inspection_type||'—'}</span>
               <span className="mono" style={{fontSize:10,color:C.muted}}>{insp.created_at?new Date(insp.created_at).toLocaleDateString('es-AR'):''}</span>
               {insp.profiles?.full_name&&<span className="mono" style={{fontSize:10,color:C.muted}}>· {insp.profiles.full_name}</span>}
             </div>
@@ -274,7 +276,6 @@ function InspeccionesTab(){
   )
 }
 
-// ── Pantalla principal Gestión ───────────────────────────────
 export default function GestionScreen(){
   const [tab,setTab]=useState('eventos')
 
@@ -285,10 +286,9 @@ export default function GestionScreen(){
         <div style={{fontSize:20,fontWeight:600,marginTop:2}}>Inspecciones y Eventos</div>
       </div>
 
-      {/* Tabs internos */}
       <div style={{display:'flex',gap:0,marginBottom:16,background:C.surface2,borderRadius:8,padding:4}}>
         {[['eventos','EVENTOS'],['inspecciones','INSPECCIONES']].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:1,background:tab===k?C.amber:' none',color:tab===k?C.bg:C.muted,border:'none',borderRadius:6,padding:'10px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,letterSpacing:'0.08em',transition:'all 0.15s',cursor:'pointer'}}>
+          <button key={k} onClick={()=>setTab(k)} style={{flex:1,background:tab===k?C.amber:'none',color:tab===k?C.bg:C.muted,border:'none',borderRadius:6,padding:'10px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,letterSpacing:'0.08em',transition:'all 0.15s',cursor:'pointer'}}>
             {l}
           </button>
         ))}
