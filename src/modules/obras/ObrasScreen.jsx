@@ -580,7 +580,11 @@ export default function ObrasScreen(){
 
   async function fetchObras(){
     setLoading(true)
-    const {data}=await supabase.from('obras').select('*, plants(name)').order('created_at',{ascending:false})
+    const {data:plantIds}=await supabase.rpc('get_accessible_plant_ids')
+    if(!plantIds?.length){setObras([]);setLoading(false);return}
+    const {data}=await supabase.from('obras').select('*, plants(name)')
+      .in('plant_id',plantIds)
+      .order('created_at',{ascending:false})
     setObras(data||[])
     setLoading(false)
   }
