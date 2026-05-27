@@ -147,7 +147,7 @@ export default function LegajoObra() {
   useEffect(() => {
     async function load() {
       const [o, p, h, f] = await Promise.all([
-        supabase.from('obras').select('*, plants(name, address, membrane, area_m2, grid_rows, grid_cols, cell_size_m), tickets(title), profiles!obras_created_by_fkey(full_name)').eq('id', id).single(),
+        supabase.from('obras').select('*, plants(id, name, address, membrane, area_m2, grid_rows, grid_cols, cell_size_m), tickets(title), profiles!obras_created_by_fkey(full_name)').eq('id', id).single(),
         supabase.from('obra_partes').select('*').eq('obra_id', id).order('date', { ascending: true }),
         supabase.from('obra_hitos').select('*').eq('obra_id', id).order('order_index'),
         supabase.from('obra_fotos').select('*').eq('obra_id', id).order('uploaded_at', { ascending: true }),
