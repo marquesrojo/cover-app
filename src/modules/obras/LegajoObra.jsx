@@ -6,6 +6,73 @@ import { Spinner } from '@/components/ui'
 
 const STATUS_LABEL={planificada:'Planificada',en_curso:'En curso',pausada:'Pausada',finalizada:'Finalizada'}
 
+function rciColorPdf(rci){
+  if(rci>=70) return {bg:'#dcfce7',border:'#22c55e',text:'#166534'}
+  if(rci>=50) return {bg:'#fef9c3',border:'#eab308',text:'#854d0e'}
+  if(rci>=30) return {bg:'#ffedd5',border:'#f97316',text:'#9a3412'}
+  return {bg:'#fee2e2',border:'#ef4444',text:'#991b1b'}
+}
+
+function MapaSectores({ plant, sectors }){
+  const rows = plant.grid_rows || 0
+  const cols = plant.grid_cols || 0
+  if(!rows || !cols) return null
+  const getSector = (r,c) => sectors.find(s => s.row_index===r && s.col_index===c)
+  const cellSize = Math.min(32, Math.floor(520 / (cols + 1)))
+  const rciValues = sectors.map(s => s.rci ?? 100)
+  const rciPromedio = rciValues.length > 0 ? Math.round(rciValues.reduce((a,b)=>a+b,0)/rciValues.length) : 100
+  const promedioColor = rciColorPdf(rciPromedio)
+  return(
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+        <div style={{ background: promedioColor.bg, border: `1px solid ${promedioColor.border}`, borderRadius: 8, padding: '10px 20px', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 28, fontWeight: 700, color: promedioColor.text }}>{rciPromedio}</div>
+          <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 9, color: '#888', textTransform: 'uppercase', letterSpacing: '0.08em' }}>RCI Promedio</div>
+        </div>
+        <div style={{ fontSize: 12, color: '#555' }}>
+          <div><strong>{rows} × {cols}</strong> sectores · {plant.cell_size_m || '—'}m por celda</div>
+          <div style={{ marginTop: 4, color: '#888' }}>{plant.area_m2?.toLocaleString()} m² totales</div>
+        </div>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'inline-block', minWidth: (cols+1)*cellSize+8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `${cellSize}px repeat(${cols}, ${cellSize}px)`, gap: 2, marginBottom: 2 }}>
+            <div/>
+            {Array.from({length:cols},(_,i)=>(
+              <div key={i} style={{ textAlign:'center', fontFamily:'IBM Plex Mono', fontSize: 8, color:'#aaa' }}>{i+1}</div>
+            ))}
+          </div>
+          {Array.from({length:rows},(_,ri)=>(
+            <div key={ri} style={{ display:'grid', gridTemplateColumns:`${cellSize}px repeat(${cols}, ${cellSize}px)`, gap:2, marginBottom:2 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'IBM Plex Mono', fontSize:8, color:'#aaa' }}>
+                {String.fromCharCode(65+ri)}
+              </div>
+              {Array.from({length:cols},(_,ci)=>{
+                const s = getSector(ri,ci)
+                const rci = s?.rci ?? 100
+                const {bg, border, text} = rciColorPdf(rci)
+                return(
+                  <div key={ci} style={{ width:cellSize, height:cellSize, background:bg, border:`1px solid ${border}`, borderRadius:2, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <span style={{ fontFamily:'IBM Plex Mono', fontSize:cellSize>24?8:7, fontWeight:700, color:text }}>{rci}</span>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ display:'flex', gap:14, marginTop:10, flexWrap:'wrap' }}>
+        {[['EXCELENTE (70-100)','#dcfce7','#22c55e','#166534'],['REGULAR (50-69)','#fef9c3','#eab308','#854d0e'],['POBRE (30-49)','#ffedd5','#f97316','#9a3412'],['CRÍTICO (0-29)','#fee2e2','#ef4444','#991b1b']].map(([l,bg,border])=>(
+          <div key={l} style={{ display:'flex', alignItems:'center', gap:5 }}>
+            <div style={{ width:12, height:12, background:bg, border:`1.5px solid ${border}`, borderRadius:2 }}/>
+            <span style={{ fontFamily:'IBM Plex Mono', fontSize:9, color:'#666' }}>{l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const PrintStyles = () => (
   <style>{`
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Sora:wght@400;600&display=swap');
@@ -20,15 +87,7 @@ const PrintStyles = () => (
       .hito-row { page-break-inside: avoid; break-inside: avoid; }
       .firma-grid { page-break-inside: avoid; break-inside: avoid; }
     }
-    .legajo {
-      font-family: 'Sora', sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      background: white;
-      color: #111;
-      padding: 40px;
-      line-height: 1.5;
-    }
+    .legajo { font-family: 'Sora', sans-serif; max-width: 800px; margin: 0 auto; background: white; color: #111; padding: 40px; line-height: 1.5; }
     .legajo h1 { font-family: 'IBM Plex Mono', monospace; font-size: 22px; margin-bottom: 4px; }
     .legajo h2 { font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; color: #555; border-bottom: 2px solid #f5a623; padding-bottom: 6px; margin: 28px 0 14px; }
     .legajo table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
@@ -65,12 +124,13 @@ export default function LegajoObra() {
   const [partes, setPartes] = useState([])
   const [hitos, setHitos] = useState([])
   const [fotos, setFotos] = useState([])
+  const [sectors, setSectors] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       const [o, p, h, f] = await Promise.all([
-        supabase.from('obras').select('*, plants(name, address, membrane, area_m2), tickets(title), profiles!obras_created_by_fkey(full_name)').eq('id', id).single(),
+        supabase.from('obras').select('*, plants(name, address, membrane, area_m2, grid_rows, grid_cols, cell_size_m), tickets(title), profiles!obras_created_by_fkey(full_name)').eq('id', id).single(),
         supabase.from('obra_partes').select('*').eq('obra_id', id).order('date', { ascending: true }),
         supabase.from('obra_hitos').select('*').eq('obra_id', id).order('order_index'),
         supabase.from('obra_fotos').select('*').eq('obra_id', id).order('uploaded_at', { ascending: true }),
@@ -79,6 +139,10 @@ export default function LegajoObra() {
       setPartes(p.data || [])
       setHitos(h.data || [])
       setFotos(f.data || [])
+      if(o.data?.plant_id){
+        const {data:sec} = await supabase.from('sectors').select('row_index,col_index,rci').eq('plant_id', o.data.plant_id)
+        setSectors(sec || [])
+      }
       setLoading(false)
     }
     load()
@@ -152,6 +216,13 @@ export default function LegajoObra() {
             <div style={{ fontFamily: 'IBM Plex Mono', fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Descripción</div>
             {obra.description}
           </div>
+        )}
+
+        {obra.plants?.grid_rows > 0 && (
+          <>
+            <h2>Estado de la Cubierta — Mapa RCI</h2>
+            <MapaSectores plant={obra.plants} sectors={sectors} />
+          </>
         )}
 
         <h2>Resumen Ejecutivo</h2>
