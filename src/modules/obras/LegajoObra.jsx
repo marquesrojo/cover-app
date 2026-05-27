@@ -17,6 +17,16 @@ function MapaSectores({ plant, sectors }){
   const rows = plant.grid_rows || 0
   const cols = plant.grid_cols || 0
   if(!rows || !cols) return null
+  const [bgImage, setBgImage] = useState(null)
+  useEffect(()=>{
+    supabase.storage.from('plant-backgrounds').list(plant.id)
+      .then(({data})=>{
+        if(data?.length>0){
+          const {data:{publicUrl}}=supabase.storage.from('plant-backgrounds').getPublicUrl(`${plant.id}/${data[0].name}`)
+          setBgImage(publicUrl)
+        }
+      })
+  },[plant.id])
   const getSector = (r,c) => sectors.find(s => s.row_index===r && s.col_index===c)
   const cellSize = Math.min(32, Math.floor(520 / (cols + 1)))
   const rciValues = sectors.map(s => s.rci ?? 100)
@@ -35,7 +45,14 @@ function MapaSectores({ plant, sectors }){
         </div>
       </div>
       <div style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'inline-block', minWidth: (cols+1)*cellSize+8 }}>
+        <div style={{ display: 'inline-block', minWidth: (cols+1)*cellSize+8, position:'relative' }}>
+          {bgImage&&(
+            <img src={bgImage} alt="" style={{
+              position:'absolute', top:20, left:cellSize+2, right:0, bottom:2,
+              width:`calc(100% - ${cellSize+2}px)`, height:`calc(100% - 22px)`,
+              objectFit:'cover', opacity:0.5, pointerEvents:'none', borderRadius:2
+            }}/>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: `${cellSize}px repeat(${cols}, ${cellSize}px)`, gap: 2, marginBottom: 2 }}>
             <div/>
             {Array.from({length:cols},(_,i)=>(
