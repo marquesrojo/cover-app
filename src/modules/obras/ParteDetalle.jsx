@@ -12,11 +12,98 @@ import { Spinner } from '@/components/ui'
 
 const WEATHER_LABEL={'Soleado':'Sol','Nublado':'Nublado','Lluvia':'Lluvia','Viento fuerte':'Viento fuerte'}
 
+function rciColorPdf(rci){
+  if(rci>=70) return {bg:'#16a34a22',border:'#16a34a',text:'#16a34a'}
+  if(rci>=50) return {bg:'#ca8a0422',border:'#ca8a04',text:'#ca8a04'}
+  if(rci>=30) return {bg:'#ea580c22',border:'#ea580c',text:'#ea580c'}
+  return {bg:'#dc262622',border:'#dc2626',text:'#dc2626'}
+}
+
+function MapaSectores({ plant, sectors, bgImage }){
+  const rows = plant.grid_rows || 0
+  const cols = plant.grid_cols || 0
+  if(!rows || !cols) return null
+  const getSector = (r,c) => sectors.find(s => s.row_index===r && s.col_index===c)
+  const cellSize = Math.min(32, Math.floor(340 / (cols + 1)))
+  const rciValues = sectors.map(s => s.rci ?? 100)
+  const rciPromedio = rciValues.length > 0 ? Math.round(rciValues.reduce((a,b)=>a+b,0)/rciValues.length) : 100
+  const promedioColor = rciColorPdf(rciPromedio)
+
+  return(
+    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:14}}>
+      <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:12}}>ESTADO DE LA CUBIERTA</div>
+
+      {/* RCI promedio */}
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+        <div style={{background:promedioColor.bg,border:`1px solid ${promedioColor.border}`,borderRadius:8,padding:'8px 16px',textAlign:'center'}}>
+          <div style={{fontFamily:'IBM Plex Mono',fontSize:24,fontWeight:700,color:promedioColor.text}}>{rciPromedio}</div>
+          <div style={{fontFamily:'IBM Plex Mono',fontSize:8,color:C.muted,textTransform:'uppercase',letterSpacing:'0.08em'}}>RCI Promedio</div>
+        </div>
+        <div style={{fontSize:11,color:C.muted}}>
+          <div><span style={{color:C.text,fontWeight:600}}>{rows} × {cols}</span> sectores</div>
+          <div style={{marginTop:2}}>{plant.cell_size_m || '—'}m por celda</div>
+        </div>
+      </div>
+
+      {/* Grilla */}
+      <div style={{overflowX:'auto'}}>
+        <div style={{display:'inline-block',minWidth:(cols+1)*cellSize+8,position:'relative'}}>
+          {bgImage&&(
+            <img src={bgImage} alt="" style={{
+              position:'absolute',top:20,left:cellSize+2,right:0,bottom:2,
+              width:`calc(100% - ${cellSize+2}px)`,height:`calc(100% - 22px)`,
+              objectFit:'cover',opacity:0.5,pointerEvents:'none',borderRadius:2
+            }}/>
+          )}
+          {/* Header columnas */}
+          <div style={{display:'grid',gridTemplateColumns:`${cellSize}px repeat(${cols},${cellSize}px)`,gap:2,marginBottom:2}}>
+            <div/>
+            {Array.from({length:cols},(_,i)=>(
+              <div key={i} style={{textAlign:'center',fontFamily:'IBM Plex Mono',fontSize:7,color:C.muted}}>{i+1}</div>
+            ))}
+          </div>
+          {/* Filas */}
+          {Array.from({length:rows},(_,ri)=>(
+            <div key={ri} style={{display:'grid',gridTemplateColumns:`${cellSize}px repeat(${cols},${cellSize}px)`,gap:2,marginBottom:2}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'IBM Plex Mono',fontSize:7,color:C.muted}}>
+                {String.fromCharCode(65+ri)}
+              </div>
+              {Array.from({length:cols},(_,ci)=>{
+                const s = getSector(ri,ci)
+                const rci = s?.rci ?? 100
+                const {bg,border,text} = rciColorPdf(rci)
+                return(
+                  <div key={ci} style={{width:cellSize,height:cellSize,background:bg,border:`1px solid ${border}`,borderRadius:2,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <span style={{fontFamily:'IBM Plex Mono',fontSize:cellSize>24?8:7,fontWeight:700,color:text}}>{rci}</span>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Leyenda */}
+      <div style={{display:'flex',gap:10,marginTop:10,flexWrap:'wrap'}}>
+        {[['EXC','#16a34a'],['REG','#ca8a04'],['POBRE','#ea580c'],['CRÍT','#dc2626']].map(([l,c])=>(
+          <div key={l} style={{display:'flex',alignItems:'center',gap:4}}>
+            <div style={{width:10,height:10,background:c+'22',border:`1.5px solid ${c}`,borderRadius:2}}/>
+            <span style={{fontFamily:'IBM Plex Mono',fontSize:8,color:C.muted}}>{l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function ParteDetalle(){
   const {id}=useParams()
   const [parte,setParte]=useState(null)
   const [obra,setObra]=useState(null)
   const [fotos,setFotos]=useState([])
+  const [sectors,setSectors]=useState([])
+  const [plant,setPlant]=useState(null)
+  const [bgImage,setBgImage]=useState(null)
   const [loading,setLoading]=useState(true)
 
   useEffect(()=>{
@@ -25,11 +112,27 @@ export default function ParteDetalle(){
       if(pe||!p){setLoading(false);return}
       setParte(p)
       const [{data:o},{data:f}]=await Promise.all([
-        supabase.from('obras').select('title, plants(name)').eq('id',p.obra_id).single(),
+        supabase.from('obras').select('title, plant_id, plants(id, name, grid_rows, grid_cols, cell_size_m, area_m2)').eq('id',p.obra_id).single(),
         supabase.from('obra_fotos').select('public_url').eq('parte_id',id).order('uploaded_at'),
       ])
       setObra(o)
       setFotos(f||[])
+
+      // Cargar sectores y bg de la planta
+      if(o?.plants?.id){
+        const plantId = o.plants.id
+        setPlant(o.plants)
+        const [{data:sec}]=await Promise.all([
+          supabase.from('sectors').select('row_index,col_index,rci').eq('plant_id',plantId),
+        ])
+        setSectors(sec||[])
+        // Imagen de fondo
+        const {data:files}=await supabase.storage.from('plant-backgrounds').list(plantId)
+        if(files?.length>0){
+          const {data:{publicUrl}}=supabase.storage.from('plant-backgrounds').getPublicUrl(`${plantId}/${files[0].name}`)
+          setBgImage(publicUrl)
+        }
+      }
       setLoading(false)
     }
     load()
@@ -53,11 +156,7 @@ export default function ParteDetalle(){
 
   const handleShare=async()=>{
     if(navigator.share){
-      try{
-        await navigator.share({title:shareTitle,text:shareText,url})
-      }catch(e){
-        // Usuario canceló o error
-      }
+      try{ await navigator.share({title:shareTitle,text:shareText,url}) }catch(e){}
     } else {
       window.open(whatsappUrl,'_blank')
     }
@@ -85,6 +184,11 @@ export default function ParteDetalle(){
           <div style={{fontSize:16,fontWeight:600,marginBottom:2}}>{obra?.title||'—'}</div>
           <div style={{fontSize:12,color:C.muted}}>{obra?.plants?.name||'—'}</div>
         </div>
+
+        {/* Mapa de sectores */}
+        {plant&&plant.grid_rows>0&&(
+          <MapaSectores plant={plant} sectors={sectors} bgImage={bgImage}/>
+        )}
 
         {/* Datos del parte */}
         <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:14}}>
