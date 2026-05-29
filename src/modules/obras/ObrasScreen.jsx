@@ -110,6 +110,49 @@ function AgregarFotosModal({parte,obraId,fotosExistentes,onClose,onSaved}){
   )
 }
 
+// ── Botón de dictado por voz ─────────────────────────────────
+function DictadoBtn({onResult}){
+  const [listening,setListening]=useState(false)
+  const recRef=useRef(null)
+
+  const toggle=()=>{
+    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition
+    if(!SpeechRecognition)return
+    if(listening){
+      recRef.current?.stop()
+      setListening(false)
+      return
+    }
+    const rec=new SpeechRecognition()
+    rec.lang='es-AR'
+    rec.continuous=false
+    rec.interimResults=false
+    rec.onresult=(e)=>{
+      const txt=e.results[0][0].transcript
+      onResult(txt)
+    }
+    rec.onend=()=>setListening(false)
+    rec.onerror=()=>setListening(false)
+    recRef.current=rec
+    rec.start()
+    setListening(true)
+  }
+
+  return(
+    <button onClick={toggle} style={{
+      background:listening?C.red+'22':'none',
+      border:`1px solid ${listening?C.red:C.border}`,
+      borderRadius:6,padding:'4px 10px',
+      color:listening?C.red:C.muted,
+      fontFamily:'IBM Plex Mono',fontSize:10,
+      cursor:'pointer',display:'flex',alignItems:'center',gap:5,
+      transition:'all 0.2s'
+    }}>
+      {listening?'⏹ ESCUCHANDO...':'🎤 DICTAR'}
+    </button>
+  )
+}
+
 function NuevaObraForm({onCreated,onCancel}){
   const {user}=useAuth()
   const [plants,setPlants]=useState([])
@@ -243,7 +286,7 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
     const {data:parte,error}=await supabase.from('obra_partes').insert({
       obra_id:obraId,date,work_types:workTypes,
       workers_count:Number(workersCount),hours_worked:Number(hoursWorked),
-      progress_pct:Number(progressPct),notes,weather:weather||null,
+      progress_pct:Number(progressPct),weather:weather||null,
       hora_inicio:horaInicio||null,hora_fin:horaFin||null,
       observaciones:observaciones||null,
       responsable:responsable||null,
@@ -300,8 +343,18 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
           ))}
         </div>
       </div>
-      <TextArea label="Notas del dia" value={notes} onChange={setNotes} placeholder="Descripcion general de trabajos realizados..." rows={3}/>
-      <TextArea label="Observaciones" value={observaciones} onChange={setObservaciones} placeholder="Inconvenientes, detalles adicionales, medidas ejecutadas..." rows={3}/>
+      <div style={{marginBottom:14}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Observaciones</div>
+          {typeof window!=='undefined'&&('SpeechRecognition' in window||'webkitSpeechRecognition' in window)&&(
+            <DictadoBtn onResult={txt=>setObservaciones(prev=>(prev?prev+' ':'')+txt)}/>
+          )}
+        </div>
+        <textarea value={observaciones} onChange={e=>setObservaciones(e.target.value)}
+          placeholder="Trabajos realizados, inconvenientes, medidas ejecutadas..."
+          rows={4}
+          style={{width:'100%',background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',color:C.text,fontSize:13,outline:'none',resize:'vertical',fontFamily:'inherit'}}/>
+      </div>
       <div style={{marginBottom:16}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
           <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Fotos del avance</div>
@@ -550,7 +603,7 @@ function ObraDetail({obraId,onBack}){
                 <span className="mono" style={{fontSize:10,color:C.muted}}>{p.hours_worked}hs</span>
               </div>
               {p.notes&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5,marginBottom:4}}>{p.notes}</div>}
-              {p.observaciones&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5,marginBottom:8,borderLeft:`2px solid ${C.border}`,paddingLeft:8}}>{p.observaciones}</div>}
+              {p.observaciones&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5,marginBottom:8}}>{p.observaciones}</div>}
               {parteFotos.length>0&&(
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
                   {parteFotos.map(f=>(
