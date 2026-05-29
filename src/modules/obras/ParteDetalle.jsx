@@ -10,7 +10,7 @@ const supabase = createClient(
 import { C } from '@/styles/tokens'
 import { Spinner } from '@/components/ui'
 
-const WEATHER_LABEL={'Soleado':'Sol','Nublado':'Nublado','Lluvia':'Lluvia','Viento fuerte':'Viento fuerte'}
+const WEATHER_LABEL={'Soleado':'Soleado','Nublado':'Nublado','Lluvia':'Lluvia','Viento fuerte':'Viento fuerte'}
 
 function rciColorPdf(rci){
   if(rci>=70) return {bg:'#16a34a22',border:'#16a34a',text:'#16a34a'}
@@ -32,8 +32,6 @@ function MapaSectores({ plant, sectors, bgImage }){
   return(
     <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:14}}>
       <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:12}}>ESTADO DE LA CUBIERTA</div>
-
-      {/* RCI promedio */}
       <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
         <div style={{background:promedioColor.bg,border:`1px solid ${promedioColor.border}`,borderRadius:8,padding:'8px 16px',textAlign:'center'}}>
           <div style={{fontFamily:'IBM Plex Mono',fontSize:24,fontWeight:700,color:promedioColor.text}}>{rciPromedio}</div>
@@ -44,25 +42,17 @@ function MapaSectores({ plant, sectors, bgImage }){
           <div style={{marginTop:2}}>{plant.cell_size_m || '—'}m por celda</div>
         </div>
       </div>
-
-      {/* Grilla */}
       <div style={{overflowX:'auto'}}>
         <div style={{display:'inline-block',minWidth:(cols+1)*cellSize+8,position:'relative'}}>
           {bgImage&&(
-            <img src={bgImage} alt="" style={{
-              position:'absolute',top:20,left:cellSize+2,right:0,bottom:2,
-              width:`calc(100% - ${cellSize+2}px)`,height:`calc(100% - 22px)`,
-              objectFit:'cover',opacity:0.5,pointerEvents:'none',borderRadius:2
-            }}/>
+            <img src={bgImage} alt="" style={{position:'absolute',top:20,left:cellSize+2,right:0,bottom:2,width:`calc(100% - ${cellSize+2}px)`,height:`calc(100% - 22px)`,objectFit:'cover',opacity:0.5,pointerEvents:'none',borderRadius:2}}/>
           )}
-          {/* Header columnas */}
           <div style={{display:'grid',gridTemplateColumns:`${cellSize}px repeat(${cols},${cellSize}px)`,gap:2,marginBottom:2}}>
             <div/>
             {Array.from({length:cols},(_,i)=>(
               <div key={i} style={{textAlign:'center',fontFamily:'IBM Plex Mono',fontSize:7,color:C.muted}}>{i+1}</div>
             ))}
           </div>
-          {/* Filas */}
           {Array.from({length:rows},(_,ri)=>(
             <div key={ri} style={{display:'grid',gridTemplateColumns:`${cellSize}px repeat(${cols},${cellSize}px)`,gap:2,marginBottom:2}}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'IBM Plex Mono',fontSize:7,color:C.muted}}>
@@ -82,8 +72,6 @@ function MapaSectores({ plant, sectors, bgImage }){
           ))}
         </div>
       </div>
-
-      {/* Leyenda */}
       <div style={{display:'flex',gap:10,marginTop:10,flexWrap:'wrap'}}>
         {[['EXC','#16a34a'],['REG','#ca8a04'],['POBRE','#ea580c'],['CRÍT','#dc2626']].map(([l,c])=>(
           <div key={l} style={{display:'flex',alignItems:'center',gap:4}}>
@@ -117,16 +105,11 @@ export default function ParteDetalle(){
       ])
       setObra(o)
       setFotos(f||[])
-
-      // Cargar sectores y bg de la planta
       if(o?.plants?.id){
         const plantId = o.plants.id
         setPlant(o.plants)
-        const [{data:sec}]=await Promise.all([
-          supabase.from('sectors').select('row_index,col_index,rci').eq('plant_id',plantId),
-        ])
+        const {data:sec}=await supabase.from('sectors').select('row_index,col_index,rci').eq('plant_id',plantId)
         setSectors(sec||[])
-        // Imagen de fondo
         const {data:files}=await supabase.storage.from('plant-backgrounds').list(plantId)
         if(files?.length>0){
           const {data:{publicUrl}}=supabase.storage.from('plant-backgrounds').getPublicUrl(`${plantId}/${files[0].name}`)
@@ -164,7 +147,6 @@ export default function ParteDetalle(){
 
   return(
     <div style={{background:C.bg,minHeight:'100vh'}}>
-      {/* Header */}
       <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:100}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           <span style={{fontFamily:'IBM Plex Mono',fontSize:18,fontWeight:700,color:C.amber,letterSpacing:'-0.04em'}}>COVER</span>
@@ -190,22 +172,51 @@ export default function ParteDetalle(){
           <MapaSectores plant={plant} sectors={sectors} bgImage={bgImage}/>
         )}
 
-        {/* Datos del parte */}
+        {/* Datos estructurados del parte */}
         <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:14}}>
           <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:12}}>DATOS DEL DIA</div>
+
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}}>
-            {[
-              ['Fecha',parte.date],
-              ['Avance',`${parte.progress_pct}%`],
-              ['Operarios',`${parte.workers_count}`],
-              ['Horas',`${parte.hours_worked}hs`],
-              ['Clima',WEATHER_LABEL[parte.weather]||parte.weather||'—'],
-            ].map(([k,v])=>(
-              <div key={k}>
-                <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>{k}</div>
-                <div style={{fontSize:13,fontWeight:600,color:k==='Avance'?C.amber:C.text}}>{v}</div>
+            <div>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>Fecha</div>
+              <div style={{fontSize:13,fontWeight:600,color:C.text}}>{parte.date}</div>
+            </div>
+            <div>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>Avance</div>
+              <div style={{fontSize:13,fontWeight:600,color:C.amber}}>{parte.progress_pct}%</div>
+            </div>
+            <div>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>Operarios</div>
+              <div style={{fontSize:13,fontWeight:600,color:C.text}}>{parte.workers_count}</div>
+            </div>
+            <div>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>Horas</div>
+              <div style={{fontSize:13,fontWeight:600,color:C.text}}>{parte.hours_worked}hs</div>
+            </div>
+            {parte.hora_inicio&&(
+              <div>
+                <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>Hora inicio</div>
+                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{parte.hora_inicio}</div>
               </div>
-            ))}
+            )}
+            {parte.hora_fin&&(
+              <div>
+                <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>Hora fin</div>
+                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{parte.hora_fin}</div>
+              </div>
+            )}
+            {parte.weather&&(
+              <div>
+                <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>Clima</div>
+                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{WEATHER_LABEL[parte.weather]||parte.weather}</div>
+              </div>
+            )}
+            {parte.responsable&&(
+              <div>
+                <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:3}}>Responsable</div>
+                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{parte.responsable}</div>
+              </div>
+            )}
           </div>
 
           {/* Barra de avance */}
@@ -227,11 +238,19 @@ export default function ParteDetalle(){
             </div>
           )}
 
-          {/* Notas */}
-          {parte.notes&&(
+          {/* Observaciones (campo nuevo) */}
+          {parte.observaciones&&(
+            <div style={{marginBottom: parte.notes ? 12 : 0}}>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Observaciones</div>
+              <div style={{fontSize:13,color:C.text,lineHeight:1.7,background:C.surface2,borderRadius:6,padding:10}}>{parte.observaciones}</div>
+            </div>
+          )}
+
+          {/* Notas legacy — partes viejos */}
+          {parte.notes&&!parte.observaciones&&(
             <div>
-              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Notas</div>
-              <div style={{fontSize:13,color:C.text,lineHeight:1.6,background:C.surface2,borderRadius:6,padding:10}}>{parte.notes}</div>
+              <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:6}}>Observaciones</div>
+              <div style={{fontSize:13,color:C.text,lineHeight:1.7,background:C.surface2,borderRadius:6,padding:10}}>{parte.notes}</div>
             </div>
           )}
         </div>
@@ -248,12 +267,10 @@ export default function ParteDetalle(){
           </div>
         )}
 
-        {/* Botón compartir */}
         <button onClick={handleShare} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:'#25D366',color:'#fff',borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,letterSpacing:'0.08em',border:'none',width:'100%',marginBottom:12,cursor:'pointer'}}>
           COMPARTIR POR WHATSAPP
         </button>
 
-        {/* Link para copiar */}
         <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:12,textAlign:'center'}}>
           <div className="mono" style={{fontSize:9,color:C.muted,marginBottom:6}}>O COPIA ESTE LINK</div>
           <div className="mono" style={{fontSize:10,color:C.amber,wordBreak:'break-all',background:C.surface2,padding:'8px 10px',borderRadius:6,cursor:'pointer'}}
