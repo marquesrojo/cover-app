@@ -200,6 +200,9 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
   const [progressPct,setProgressPct]=useState('0')
   const [notes,setNotes]=useState('')
   const [weather,setWeather]=useState('')
+  const [horaInicio,setHoraInicio]=useState('08:00')
+  const [horaFin,setHoraFin]=useState('17:00')
+  const [observaciones,setObservaciones]=useState('')
   const [responsable,setResponsable]=useState(responsableDefault||'')
   const [usuarios,setUsuarios]=useState([])
   const [photos,setPhotos]=useState([])
@@ -241,6 +244,8 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
       obra_id:obraId,date,work_types:workTypes,
       workers_count:Number(workersCount),hours_worked:Number(hoursWorked),
       progress_pct:Number(progressPct),notes,weather:weather||null,
+      hora_inicio:horaInicio||null,hora_fin:horaFin||null,
+      observaciones:observaciones||null,
       responsable:responsable||null,
       created_by:user.id
     }).select().single()
@@ -278,6 +283,10 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
         <Input label="Operarios" type="number" value={workersCount} onChange={setWorkersCount}/>
         <Input label="Horas trabajadas" type="number" value={hoursWorked} onChange={setHoursWorked}/>
       </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+        <Input label="Hora inicio" type="time" value={horaInicio} onChange={setHoraInicio}/>
+        <Input label="Hora fin" type="time" value={horaFin} onChange={setHoraFin}/>
+      </div>
       <div style={{marginBottom:14}}>
         <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Avance acumulado: <span style={{color:C.amber}}>{progressPct}%</span></div>
         <input type="range" min={0} max={100} value={progressPct} onChange={e=>setProgressPct(e.target.value)} style={{width:'100%',accentColor:C.amber}}/>
@@ -291,7 +300,8 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
           ))}
         </div>
       </div>
-      <TextArea label="Notas del dia" value={notes} onChange={setNotes} placeholder="Descripcion de trabajos realizados, inconvenientes, observaciones..." rows={4}/>
+      <TextArea label="Notas del dia" value={notes} onChange={setNotes} placeholder="Descripcion general de trabajos realizados..." rows={3}/>
+      <TextArea label="Observaciones" value={observaciones} onChange={setObservaciones} placeholder="Inconvenientes, detalles adicionales, medidas ejecutadas..." rows={3}/>
       <div style={{marginBottom:16}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
           <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Fotos del avance</div>
@@ -525,6 +535,11 @@ function ObraDetail({obraId,onBack}){
                 </div>
               </div>
               {p.responsable&&<div className="mono" style={{fontSize:10,color:C.muted,marginBottom:6}}>Responsable: {p.responsable}</div>}
+              {(p.hora_inicio||p.hora_fin)&&(
+                <div className="mono" style={{fontSize:10,color:C.muted,marginBottom:6}}>
+                  {p.hora_inicio&&`Inicio: ${p.hora_inicio}`}{p.hora_inicio&&p.hora_fin&&' · '}{p.hora_fin&&`Fin: ${p.hora_fin}`}
+                </div>
+              )}
               {p.work_types?.length>0&&(
                 <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:8}}>
                   {p.work_types.map(t=><span key={t} style={{background:C.amber+'22',color:C.amber,border:`1px solid ${C.amber}44`,borderRadius:3,padding:'2px 6px',fontSize:9,fontFamily:'IBM Plex Mono'}}>{t}</span>)}
@@ -534,7 +549,8 @@ function ObraDetail({obraId,onBack}){
                 <span className="mono" style={{fontSize:10,color:C.muted}}>{p.workers_count} operarios</span>
                 <span className="mono" style={{fontSize:10,color:C.muted}}>{p.hours_worked}hs</span>
               </div>
-              {p.notes&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5,marginBottom:8}}>{p.notes}</div>}
+              {p.notes&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5,marginBottom:4}}>{p.notes}</div>}
+              {p.observaciones&&<div style={{fontSize:12,color:C.mutedLight,lineHeight:1.5,marginBottom:8,borderLeft:`2px solid ${C.border}`,paddingLeft:8}}>{p.observaciones}</div>}
               {parteFotos.length>0&&(
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
                   {parteFotos.map(f=>(
