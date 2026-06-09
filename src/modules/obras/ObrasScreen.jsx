@@ -387,8 +387,153 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
   )
 }
 
-function ObraDetail({obraId,onBack}){
+function EditarParteForm({parte,obraId,onSaved,onCancel}){
   const {user}=useAuth()
+  const fileInputRef=useRef()
+  const [date,setDate]=useState(parte.date||'')
+  const [workTypes,setWorkTypes]=useState(parte.work_types||[])
+  const [workersCount,setWorkersCount]=useState(String(parte.workers_count||1))
+  const [hoursWorked,setHoursWorked]=useState(String(parte.hours_worked||8))
+  const [progressPct,setProgressPct]=useState(String(parte.progress_pct||0))
+  const [weather,setWeather]=useState(parte.weather||'')
+  const [horaInicio,setHoraInicio]=useState(parte.hora_inicio||'08:00')
+  const [horaFin,setHoraFin]=useState(parte.hora_fin||'17:00')
+  const [observaciones,setObservaciones]=useState(parte.observaciones||parte.notes||'')
+  const [responsable,setResponsable]=useState(parte.responsable||'')
+  const [usuarios,setUsuarios]=useState([])
+  const [photos,setPhotos]=useState([])
+  const [saving,setSaving]=useState(false)
+  const [fotoError,setFotoError]=useState('')
+
+  useEffect(()=>{
+    supabase.from('profiles').select('id,full_name').eq('approved',true).eq('role','operario').order('full_name')
+      .then(({data})=>setUsuarios(data||[]))
+  },[])
+
+  const toggleWorkType=(t)=>setWorkTypes(prev=>prev.includes(t)?prev.filter(x=>x!==t):[...prev,t])
+
+  const handleFileSelect=(e)=>{
+    const files=Array.from(e.target.files)
+    const total=photos.length+files.length
+    if(total>MAX_FOTOS){
+      setFotoError(`Maximo ${MAX_FOTOS} fotos.`)
+      const allowed=files.slice(0,MAX_FOTOS-photos.length)
+      setPhotos(prev=>[...prev,...allowed.map(f=>({file:f,preview:URL.createObjectURL(f)}))])
+    } else {
+      setFotoError('')
+      setPhotos(prev=>[...prev,...files.map(f=>({file:f,preview:URL.createObjectURL(f)}))])
+    }
+    e.target.value=''
+  }
+
+  const removePhoto=(idx)=>{
+    setPhotos(prev=>{URL.revokeObjectURL(prev[idx].preview);return prev.filter((_,i)=>i!==idx)})
+    setFotoError('')
+  }
+
+  const save=async()=>{
+    setSaving(true)
+    const {error}=await supabase.from('obra_partes').update({
+      date,work_types:workTypes,
+      workers_count:Number(workersCount),hours_worked:Number(hoursWorked),
+      progress_pct:Number(progressPct),weather:weather||null,
+      hora_inicio:horaInicio||null,hora_fin:horaFin||null,
+      observaciones:observaciones||null,
+      responsable:responsable||null,
+      updated_at:new Date().toISOString()
+    }).eq('id',parte.id)
+    if(error){alert(error.message);setSaving(false);return}
+    for(const photo of photos){
+      try{
+        const path=`${obraId}/${parte.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+        const {error:upErr}=await supabase.storage.from('obra-fotos').upload(path,photo.file)
+        if(!upErr){
+          const {data:{publicUrl}}=supabase.storage.from('obra-fotos').getPublicUrl(path)
+          await supabase.from('obra_fotos').insert({obra_id:obraId,parte_id:parte.id,storage_path:path,public_url:publicUrl,uploaded_by:user.id})
+        }
+      }catch(e){console.error(e)}
+    }
+    setSaving(false);onSaved()
+  }
+
+  return(
+    <div style={{padding:'16px 16px 80px',animation:'fadeIn 0.3s ease'}}>
+      <button onClick={onCancel} style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:11,marginBottom:16,padding:0}}>VOLVER</button>
+      <div style={{fontSize:18,fontWeight:600,marginBottom:4}}>Editar Parte Diario</div>
+      <div className="mono" style={{fontSize:10,color:C.muted,marginBottom:20}}>{parte.date}</div>
+      <Input label="Fecha" type="date" value={date} onChange={setDate}/>
+      <Select label="Responsable del parte" value={responsable} onChange={setResponsable}
+        options={[{value:'',label:'Seleccionar responsable...'},...usuarios.map(u=>({value:u.full_name,label:u.full_name}))]}/>
+      <div style={{marginBottom:14}}>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Tipos de trabajo</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+          {WORK_TYPES.map(t=>(
+            <button key={t} onClick={()=>toggleWorkType(t)} style={{background:workTypes.includes(t)?C.amber+'33':C.surface2,border:`1.5px solid ${workTypes.includes(t)?C.amber:C.border}`,borderRadius:6,padding:'8px 12px',color:workTypes.includes(t)?C.amber:C.muted,fontSize:12,minHeight:44,transition:'all 0.15s'}}>{t}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+        <Input label="Operarios" type="number" value={workersCount} onChange={setWorkersCount}/>
+        <Input label="Horas trabajadas" type="number" value={hoursWorked} onChange={setHoursWorked}/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+        <Input label="Hora inicio" type="time" value={horaInicio} onChange={setHoraInicio}/>
+        <Input label="Hora fin" type="time" value={horaFin} onChange={setHoraFin}/>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Avance acumulado: <span style={{color:C.amber}}>{progressPct}%</span></div>
+        <input type="range" min={0} max={100} value={progressPct} onChange={e=>setProgressPct(e.target.value)} style={{width:'100%',accentColor:C.amber}}/>
+        <div style={{display:'flex',justifyContent:'space-between'}}><span className="mono" style={{fontSize:9,color:C.muted}}>0%</span><span className="mono" style={{fontSize:9,color:C.muted}}>100%</span></div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:8}}>Condicion climatica</div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          {WEATHER.map(w=>(
+            <button key={w} onClick={()=>setWeather(weather===w?'':w)} style={{background:weather===w?C.blue+'33':C.surface2,border:`1.5px solid ${weather===w?C.blue:C.border}`,borderRadius:6,padding:'8px 12px',color:weather===w?C.blue:C.muted,fontSize:12,minHeight:44,transition:'all 0.15s'}}>{w}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Observaciones</div>
+          {typeof window!=='undefined'&&('SpeechRecognition' in window||'webkitSpeechRecognition' in window)&&(
+            <DictadoBtn onResult={txt=>setObservaciones(prev=>(prev?prev+' ':'')+txt)}/>
+          )}
+        </div>
+        <textarea value={observaciones} onChange={e=>setObservaciones(e.target.value)}
+          placeholder="Trabajos realizados, inconvenientes, medidas ejecutadas..."
+          rows={4}
+          style={{width:'100%',background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',color:C.text,fontSize:13,outline:'none',resize:'vertical',fontFamily:'inherit'}}/>
+      </div>
+      <div style={{marginBottom:16}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Agregar mas fotos</div>
+          <span className="mono" style={{fontSize:10,color:photos.length>=MAX_FOTOS?C.orange:C.muted}}>{photos.length}/{MAX_FOTOS}</span>
+        </div>
+        {fotoError&&<AlertBanner color={C.orange} icon="?">{fotoError}</AlertBanner>}
+        <input ref={fileInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleFileSelect}/>
+        <button onClick={()=>fileInputRef.current?.click()} disabled={photos.length>=MAX_FOTOS}
+          style={{width:'100%',background:photos.length>=MAX_FOTOS?C.surface2:C.amber+'22',border:`1.5px dashed ${photos.length>=MAX_FOTOS?C.border:C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:photos.length>=MAX_FOTOS?C.muted:C.amber,cursor:photos.length>=MAX_FOTOS?'not-allowed':'pointer',marginBottom:10}}>
+          {photos.length>=MAX_FOTOS?'LIMITE ALCANZADO':'+ AGREGAR FOTOS'}
+        </button>
+        {photos.length>0&&(
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {photos.map((ph,i)=>(
+              <div key={i} style={{position:'relative'}}>
+                <img src={ph.preview} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}}/>
+                <button onClick={()=>removePhoto(i)} style={{position:'absolute',top:4,right:4,background:'#000a',border:'none',borderRadius:'50%',width:24,height:24,color:'#fff',fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>x</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <Btn full onClick={save} disabled={saving}>{saving?'GUARDANDO...':'GUARDAR CAMBIOS'}</Btn>
+    </div>
+  )
+}
+
+function ObraDetail({obraId,onBack}){
+  const {user,profile}=useAuth()
   const [obra,setObra]=useState(null)
   const [partes,setPartes]=useState([])
   const [hitos,setHitos]=useState([])
@@ -399,6 +544,7 @@ function ObraDetail({obraId,onBack}){
   const [actualStart,setActualStart]=useState('')
   const [savingDate,setSavingDate]=useState(false)
   const [addFotosParte,setAddFotosParte]=useState(null)
+  const [editandoParte,setEditandoParte]=useState(null)
 
   useEffect(()=>{loadData()},[obraId])
 
@@ -438,6 +584,12 @@ function ObraDetail({obraId,onBack}){
 
   if(loading)return<Spinner/>
   if(!obra)return<div style={{padding:24,color:C.muted}}>Obra no encontrada</div>
+  if(editandoParte)return<EditarParteForm
+    parte={editandoParte}
+    obraId={obraId}
+    onSaved={()=>{setEditandoParte(null);loadData()}}
+    onCancel={()=>setEditandoParte(null)}
+  />
   if(showNuevoParte)return<NuevoParteForm
     obraId={obraId}
     fotosUrl={obra.fotos_url}
@@ -587,6 +739,12 @@ function ObraDetail({obraId,onBack}){
                   <Badge color={C.green} small>{p.progress_pct}%</Badge>
                 </div>
               </div>
+              {(p.created_by===user?.id||profile?.role==='cover_admin')&&(
+                <button onClick={e=>{e.stopPropagation();setEditandoParte(p)}}
+                  style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 10px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer',marginBottom:6}}>
+                  EDITAR
+                </button>
+              )}
               {p.responsable&&<div className="mono" style={{fontSize:10,color:C.muted,marginBottom:6}}>Responsable: {p.responsable}</div>}
               {(p.hora_inicio||p.hora_fin)&&(
                 <div className="mono" style={{fontSize:10,color:C.muted,marginBottom:6}}>
