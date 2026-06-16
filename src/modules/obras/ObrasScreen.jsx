@@ -358,11 +358,18 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
       try{
         const path=`${obraId}/${parte.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`
         const {error:upErr}=await supabase.storage.from('obra-videos').upload(path,video.file)
-        if(!upErr){
-          const {data:{publicUrl}}=supabase.storage.from('obra-videos').getPublicUrl(path)
-          await supabase.from('obra_videos').insert({obra_id:obraId,parte_id:parte.id,storage_path:path,public_url:publicUrl,duration_seconds:video.duration,uploaded_by:user.id})
+        if(upErr){
+          alert('ERROR SUBIENDO VIDEO (storage): '+upErr.message)
+          continue
         }
-      }catch(e){console.error(e)}
+        const {data:{publicUrl}}=supabase.storage.from('obra-videos').getPublicUrl(path)
+        const {error:insErr}=await supabase.from('obra_videos').insert({obra_id:obraId,parte_id:parte.id,storage_path:path,public_url:publicUrl,duration_seconds:video.duration,uploaded_by:user.id})
+        if(insErr){
+          alert('ERROR GUARDANDO VIDEO (insert): '+insErr.message)
+        }
+      }catch(e){
+        alert('ERROR INESPERADO EN VIDEO: '+e.message)
+      }
     }
     await supabase.from('obras').update({status:'en_curso',updated_at:new Date().toISOString()}).eq('id',obraId)
     setSaving(false);onCreated()
