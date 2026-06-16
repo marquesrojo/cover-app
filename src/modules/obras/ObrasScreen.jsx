@@ -332,7 +332,9 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
     setVideoError('')
   }
 
-
+  const save=async()=>{
+    setSaving(true)
+    const {data:parte,error}=await supabase.from('obra_partes').insert({
       obra_id:obraId,date,work_types:workTypes,
       workers_count:Number(workersCount),hours_worked:Number(hoursWorked),
       progress_pct:Number(progressPct),weather:weather||null,
