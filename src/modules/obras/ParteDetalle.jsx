@@ -89,6 +89,7 @@ export default function ParteDetalle(){
   const [parte,setParte]=useState(null)
   const [obra,setObra]=useState(null)
   const [fotos,setFotos]=useState([])
+  const [videos,setVideos]=useState([])
   const [sectors,setSectors]=useState([])
   const [plant,setPlant]=useState(null)
   const [bgImage,setBgImage]=useState(null)
@@ -99,12 +100,14 @@ export default function ParteDetalle(){
       const {data:p,error:pe}=await supabase.from('obra_partes').select('*').eq('id',id).single()
       if(pe||!p){setLoading(false);return}
       setParte(p)
-      const [{data:o},{data:f}]=await Promise.all([
+      const [{data:o},{data:f},{data:v}]=await Promise.all([
         supabase.from('obras').select('title, plant_id, plants(id, name, grid_rows, grid_cols, cell_size_m, area_m2)').eq('id',p.obra_id).single(),
         supabase.from('obra_fotos').select('public_url').eq('parte_id',id).order('uploaded_at'),
+        supabase.from('obra_videos').select('public_url,duration_seconds').eq('parte_id',id).order('uploaded_at'),
       ])
       setObra(o)
       setFotos(f||[])
+      setVideos(v||[])
       if(o?.plants?.id){
         const plantId = o.plants.id
         setPlant(o.plants)
@@ -262,6 +265,23 @@ export default function ParteDetalle(){
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
               {fotos.map((f,i)=>(
                 <img key={i} src={f.public_url} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}}/>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Videos */}
+        {videos.length>0&&(
+          <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:14}}>
+            <div className="mono" style={{fontSize:9,color:C.muted,letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:12}}>VIDEOS ({videos.length})</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              {videos.map((v,i)=>(
+                <div key={i} style={{position:'relative'}}>
+                  <video src={v.public_url} controls style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}}/>
+                  {v.duration_seconds&&(
+                    <span style={{position:'absolute',top:6,right:6,background:'#000a',borderRadius:4,padding:'2px 6px',fontSize:9,color:'#fff',fontFamily:'IBM Plex Mono',pointerEvents:'none'}}>{v.duration_seconds}s</span>
+                  )}
+                </div>
               ))}
             </div>
           </div>
