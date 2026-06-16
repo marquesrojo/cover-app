@@ -6,6 +6,21 @@ import { C, rciColor } from '@/styles/tokens'
 import { Badge, Spinner, Btn, Input, TextArea, Select, PhotoUpload, AlertBanner } from '@/components/ui'
 
 const MAX_FOTOS = 7
+const MAX_VIDEO_SECONDS = 15
+const MAX_VIDEOS = 2
+
+function checkVideoDuration(file){
+  return new Promise((resolve,reject)=>{
+    const video=document.createElement('video')
+    video.preload='metadata'
+    video.onloadedmetadata=()=>{
+      window.URL.revokeObjectURL(video.src)
+      resolve(video.duration)
+    }
+    video.onerror=()=>reject(new Error('No se pudo leer el video'))
+    video.src=URL.createObjectURL(file)
+  })
+}
 const STATUS={planificada:{color:C.blue,label:'PLANIFICADA'},en_curso:{color:C.amber,label:'EN CURSO'},pausada:{color:C.orange,label:'PAUSADA'},finalizada:{color:C.green,label:'FINALIZADA'}}
 const WORK_TYPES=['Demolicion','Impermeabilizacion','Aplicacion membrana','Soldadura','Sellado','Inspeccion NDT','Limpieza','Otros']
 const WEATHER=['Soleado','Nublado','Lluvia','Viento fuerte']
@@ -236,6 +251,7 @@ function NuevaObraForm({onCreated,onCancel}){
 function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel}){
   const {user}=useAuth()
   const fileInputRef=useRef()
+  const videoInputRef=useRef()
   const [date,setDate]=useState(new Date().toISOString().split('T')[0])
   const [workTypes,setWorkTypes]=useState([])
   const [workersCount,setWorkersCount]=useState('1')
@@ -251,6 +267,9 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
   const [photos,setPhotos]=useState([])
   const [saving,setSaving]=useState(false)
   const [fotoError,setFotoError]=useState('')
+  const [videos,setVideos]=useState([])
+  const [videoError,setVideoError]=useState('')
+  const [checkingVideo,setCheckingVideo]=useState(false)
 
   useEffect(()=>{
     supabase.from('profiles').select('id,full_name').eq('approved',true).eq('role','operario').order('full_name')
@@ -281,9 +300,39 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
     setFotoError('')
   }
 
-  const save=async()=>{
-    setSaving(true)
-    const {data:parte,error}=await supabase.from('obra_partes').insert({
+  const handleVideoSelect=async(e)=>{
+    const file=e.target.files[0]
+    e.target.value=''
+    if(!file)return
+    if(videos.length>=MAX_VIDEOS){
+      setVideoError(`Máximo ${MAX_VIDEOS} videos por parte.`)
+      return
+    }
+    setCheckingVideo(true)
+    setVideoError('')
+    try{
+      const duration=await checkVideoDuration(file)
+      if(duration>MAX_VIDEO_SECONDS+1){
+        setVideoError(`El video dura ${Math.round(duration)}s. Máximo permitido: ${MAX_VIDEO_SECONDS}s. Grabá uno más corto.`)
+        setCheckingVideo(false)
+        return
+      }
+      setVideos(prev=>[...prev,{file,preview:URL.createObjectURL(file),duration:Math.round(duration)}])
+    }catch(err){
+      setVideoError('No se pudo leer el video. Intentá de nuevo.')
+    }
+    setCheckingVideo(false)
+  }
+
+  const removeVideo=(idx)=>{
+    setVideos(prev=>{
+      URL.revokeObjectURL(prev[idx].preview)
+      return prev.filter((_,i)=>i!==idx)
+    })
+    setVideoError('')
+  }
+
+
       obra_id:obraId,date,work_types:workTypes,
       workers_count:Number(workersCount),hours_worked:Number(hoursWorked),
       progress_pct:Number(progressPct),weather:weather||null,
@@ -300,6 +349,16 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
         if(!upErr){
           const {data:{publicUrl}}=supabase.storage.from('obra-fotos').getPublicUrl(path)
           await supabase.from('obra_fotos').insert({obra_id:obraId,parte_id:parte.id,storage_path:path,public_url:publicUrl,uploaded_by:user.id})
+        }
+      }catch(e){console.error(e)}
+    }
+    for(const video of videos){
+      try{
+        const path=`${obraId}/${parte.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`
+        const {error:upErr}=await supabase.storage.from('obra-videos').upload(path,video.file)
+        if(!upErr){
+          const {data:{publicUrl}}=supabase.storage.from('obra-videos').getPublicUrl(path)
+          await supabase.from('obra_videos').insert({obra_id:obraId,parte_id:parte.id,storage_path:path,public_url:publicUrl,duration_seconds:video.duration,uploaded_by:user.id})
         }
       }catch(e){console.error(e)}
     }
@@ -377,12 +436,38 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
           </div>
         )}
       </div>
+      <div style={{marginBottom:16}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+          <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase'}}>Videos del avance</div>
+          <span className="mono" style={{fontSize:10,color:videos.length>=MAX_VIDEOS?C.orange:C.muted}}>{videos.length}/{MAX_VIDEOS}</span>
+        </div>
+        <div style={{background:C.blue+'11',border:`1px solid ${C.blue}33`,borderRadius:6,padding:'8px 10px',marginBottom:8}}>
+          <span style={{fontSize:11,color:C.blue}}>ℹ Grabá clips cortos: máximo {MAX_VIDEO_SECONDS} segundos cada uno.</span>
+        </div>
+        {videoError&&<AlertBanner color={C.orange} icon="⚠">{videoError}</AlertBanner>}
+        <input ref={videoInputRef} type="file" accept="video/*" capture="environment" style={{display:'none'}} onChange={handleVideoSelect}/>
+        <button onClick={()=>videoInputRef.current?.click()} disabled={videos.length>=MAX_VIDEOS||checkingVideo}
+          style={{width:'100%',background:videos.length>=MAX_VIDEOS?C.surface2:C.amber+'22',border:`1.5px dashed ${videos.length>=MAX_VIDEOS?C.border:C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:videos.length>=MAX_VIDEOS?C.muted:C.amber,cursor:videos.length>=MAX_VIDEOS?'not-allowed':'pointer',marginBottom:10}}>
+          {checkingVideo?'VERIFICANDO DURACIÓN...':videos.length>=MAX_VIDEOS?`LÍMITE ALCANZADO (${MAX_VIDEOS} videos)`:'🎥 GRABAR VIDEO'}
+        </button>
+        {videos.length>0&&(
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {videos.map((v,i)=>(
+              <div key={i} style={{position:'relative'}}>
+                <video src={v.preview} style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:8,border:`1px solid ${C.border}`}} muted/>
+                <span style={{position:'absolute',bottom:4,left:4,background:'#000a',borderRadius:4,padding:'2px 6px',fontSize:9,color:'#fff',fontFamily:'IBM Plex Mono'}}>{v.duration}s</span>
+                <button onClick={()=>removeVideo(i)} style={{position:'absolute',top:4,right:4,background:'#000a',border:'none',borderRadius:'50%',width:24,height:24,color:'#fff',fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>x</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       {fotosUrl&&(
         <a href={fotosUrl} target="_blank" rel="noreferrer" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:C.blue+'22',border:`1px solid ${C.blue}44`,color:C.blue,borderRadius:8,padding:'12px',fontFamily:'IBM Plex Mono',fontSize:10,fontWeight:700,textDecoration:'none',marginBottom:16}}>
           ABRIR CARPETA DE FOTOS COMPARTIDA
         </a>
       )}
-      <Btn full onClick={save} disabled={saving}>{saving?`GUARDANDO${photos.length>0?` (${photos.length} fotos)`:''}...`:'GUARDAR PARTE DIARIO'}</Btn>
+      <Btn full onClick={save} disabled={saving}>{saving?`GUARDANDO${photos.length>0?` (${photos.length} fotos)`:''}${videos.length>0?` (${videos.length} videos)`:''}...`:'GUARDAR PARTE DIARIO'}</Btn>
     </div>
   )
 }
@@ -538,6 +623,7 @@ function ObraDetail({obraId,onBack}){
   const [partes,setPartes]=useState([])
   const [hitos,setHitos]=useState([])
   const [fotos,setFotos]=useState([])
+  const [videos,setVideos]=useState([])
   const [loading,setLoading]=useState(true)
   const [showNuevoParte,setShowNuevoParte]=useState(false)
   const [editingActualStart,setEditingActualStart]=useState(false)
@@ -550,17 +636,19 @@ function ObraDetail({obraId,onBack}){
 
   async function loadData(){
     setLoading(true)
-    const [o,p,h,f]=await Promise.all([
+    const [o,p,h,f,v]=await Promise.all([
       supabase.from('obras').select('*, plants(name), tickets(title)').eq('id',obraId).single(),
       supabase.from('obra_partes').select('*').eq('obra_id',obraId).order('date',{ascending:false}),
       supabase.from('obra_hitos').select('*').eq('obra_id',obraId).order('order_index'),
       supabase.from('obra_fotos').select('*').eq('obra_id',obraId).order('uploaded_at',{ascending:false}),
+      supabase.from('obra_videos').select('*').eq('obra_id',obraId).order('uploaded_at',{ascending:false}),
     ])
     setObra(o.data)
     setActualStart(o.data?.actual_start||'')
     setPartes(p.data||[])
     setHitos(h.data||[])
     setFotos(f.data||[])
+    setVideos(v.data||[])
     setLoading(false)
   }
 
@@ -725,6 +813,7 @@ function ObraDetail({obraId,onBack}){
           const shareText=`Parte diario\nObra: ${obra.title}\nFecha: ${p.date}\nAvance: ${p.progress_pct}%`
           const whatsappUrl=`https://wa.me/?text=${encodeURIComponent(shareText+'\n\nVer detalle: '+parteUrl)}`
           const parteFotos=fotos.filter(f=>f.parte_id===p.id)
+          const parteVideos=videos.filter(v=>v.parte_id===p.id)
           const fotosCount=parteFotos.length
           const handleShare=async()=>{
             if(navigator.share){try{await navigator.share({title:'Parte Diario',text:shareText,url:parteUrl})}catch(e){}}
@@ -766,6 +855,13 @@ function ObraDetail({obraId,onBack}){
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
                   {parteFotos.map(f=>(
                     <img key={f.id} src={f.public_url} alt="" style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:6,border:`1px solid ${C.border}`}}/>
+                  ))}
+                </div>
+              )}
+              {parteVideos.length>0&&(
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:8}}>
+                  {parteVideos.map(v=>(
+                    <video key={v.id} src={v.public_url} controls style={{width:'100%',aspectRatio:'4/3',objectFit:'cover',borderRadius:6,border:`1px solid ${C.border}`}}/>
                   ))}
                 </div>
               )}
