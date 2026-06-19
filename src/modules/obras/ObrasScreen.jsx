@@ -637,6 +637,8 @@ function ObraDetail({obraId,onBack}){
   const [showNuevoParte,setShowNuevoParte]=useState(false)
   const [editingActualStart,setEditingActualStart]=useState(false)
   const [actualStart,setActualStart]=useState('')
+  const [editingPlannedEnd,setEditingPlannedEnd]=useState(false)
+  const [plannedEnd,setPlannedEnd]=useState('')
   const [savingDate,setSavingDate]=useState(false)
   const [addFotosParte,setAddFotosParte]=useState(null)
   const [editandoParte,setEditandoParte]=useState(null)
@@ -654,6 +656,7 @@ function ObraDetail({obraId,onBack}){
     ])
     setObra(o.data)
     setActualStart(o.data?.actual_start||'')
+    setPlannedEnd(o.data?.planned_end||'')
     setPartes(p.data||[])
     setHitos(h.data||[])
     setFotos(f.data||[])
@@ -666,6 +669,14 @@ function ObraDetail({obraId,onBack}){
     await supabase.from('obras').update({actual_start:actualStart||null}).eq('id',obraId)
     setObra(prev=>({...prev,actual_start:actualStart}))
     setEditingActualStart(false)
+    setSavingDate(false)
+  }
+
+  async function savePlannedEnd(){
+    setSavingDate(true)
+    await supabase.from('obras').update({planned_end:plannedEnd||null}).eq('id',obraId)
+    setObra(prev=>({...prev,planned_end:plannedEnd}))
+    setEditingPlannedEnd(false)
     setSavingDate(false)
   }
 
@@ -742,12 +753,33 @@ function ObraDetail({obraId,onBack}){
       <div style={{background:C.surface2,border:`1px solid ${C.border}`,borderRadius:8,padding:14,marginBottom:12}}>
         <div className="mono" style={{fontSize:10,color:C.muted,letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:10}}>Cronograma</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-          {[['Inicio plan.',obra.planned_start||'--'],['Fin plan.',obra.planned_end||'--']].map(([l,v])=>(
+          {[['Inicio plan.',obra.planned_start||'--']].map(([l,v])=>(
             <div key={l}>
               <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase'}}>{l}</div>
               <div style={{fontSize:13,color:C.text,marginTop:2}}>{v}</div>
             </div>
           ))}
+          <div>
+            <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:4}}>Fin plan.</div>
+            {editingPlannedEnd?(
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <input type="date" value={plannedEnd} onChange={e=>setPlannedEnd(e.target.value)}
+                  style={{background:C.surface,border:`1px solid ${C.amber}`,borderRadius:6,padding:'4px 8px',color:C.text,fontSize:12,outline:'none',flex:1}}/>
+                <button onClick={savePlannedEnd} disabled={savingDate}
+                  style={{background:C.amber,color:C.bg,border:'none',borderRadius:6,padding:'4px 8px',fontFamily:'IBM Plex Mono',fontSize:9,fontWeight:700,cursor:'pointer'}}>
+                  {savingDate?'...':'OK'}
+                </button>
+                <button onClick={()=>setEditingPlannedEnd(false)}
+                  style={{background:'none',border:'none',color:C.muted,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>x</button>
+              </div>
+            ):(
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <span style={{fontSize:13,color:C.text}}>{obra.planned_end||'--'}</span>
+                <button onClick={()=>setEditingPlannedEnd(true)}
+                  style={{background:'none',border:'none',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>EDITAR</button>
+              </div>
+            )}
+          </div>
           <div>
             <div className="mono" style={{fontSize:9,color:C.muted,textTransform:'uppercase',marginBottom:4}}>Inicio real</div>
             {editingActualStart?(
