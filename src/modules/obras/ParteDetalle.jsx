@@ -70,7 +70,7 @@ function MapaSectores({ plant, sectors, bgImage }){
                 const {bg,border,text} = rciColorPdf(rci)
                 return(
                   <div key={ci} style={{aspectRatio:'1',background:bg,border:`1px solid ${border}`,borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <span style={{fontFamily:'IBM Plex Mono',fontSize:cellSize>36?10:8,fontWeight:700,color:text}}>{rci}</span>
+                    <span style={{fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,color:text}}>{rci}</span>
                   </div>
                 )
               })}
