@@ -120,6 +120,16 @@ function EscucharReporte({parte,obra}){
       setSpeaking(false)
       return
     }
+    // Workaround para forzar salida de audio por Bluetooth/altavoz
+    try{
+      const ctx=new (window.AudioContext||window.webkitAudioContext)()
+      const buf=ctx.createBuffer(1,1,22050)
+      const src=ctx.createBufferSource()
+      src.buffer=buf
+      src.connect(ctx.destination)
+      src.start(0)
+      ctx.resume()
+    }catch(e){}
     const utt=new SpeechSynthesisUtterance(buildTexto())
     utt.lang='es-AR'
     utt.rate=0.95
