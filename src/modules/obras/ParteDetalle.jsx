@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { createClient } from '@supabase/supabase-js'
 
@@ -88,6 +88,51 @@ function MapaSectores({ plant, sectors, bgImage }){
         ))}
       </div>
     </div>
+  )
+}
+
+function EscucharReporte({parte,obra}){
+  const [speaking,setSpeaking]=useState(false)
+
+  const buildTexto=()=>{
+    const lineas=[]
+    lineas.push('Parte diario de obra.')
+    lineas.push(`Obra: ${obra?.title||''}.`)
+    lineas.push(`Planta: ${obra?.plants?.name||''}.`)
+    lineas.push(`Fecha: ${parte.date}.`)
+    lineas.push(`Avance: ${parte.progress_pct} por ciento.`)
+    lineas.push(`Operarios: ${parte.workers_count}.`)
+    lineas.push(`Horas trabajadas: ${parte.hours_worked}.`)
+    if(parte.hora_inicio) lineas.push(`Hora inicio: ${parte.hora_inicio}.`)
+    if(parte.hora_fin) lineas.push(`Hora fin: ${parte.hora_fin}.`)
+    if(parte.weather) lineas.push(`Clima: ${parte.weather}.`)
+    if(parte.responsable) lineas.push(`Responsable: ${parte.responsable}.`)
+    if(parte.work_types?.length>0) lineas.push(`Trabajos realizados: ${parte.work_types.join(', ')}.`)
+    if(parte.observaciones) lineas.push(`Observaciones: ${parte.observaciones}.`)
+    else if(parte.notes) lineas.push(`Observaciones: ${parte.notes}.`)
+    return lineas.join(' ')
+  }
+
+  const handleSpeak=()=>{
+    if(!window.speechSynthesis) return
+    if(speaking){
+      window.speechSynthesis.cancel()
+      setSpeaking(false)
+      return
+    }
+    const utt=new SpeechSynthesisUtterance(buildTexto())
+    utt.lang='es-AR'
+    utt.rate=0.95
+    utt.onend=()=>setSpeaking(false)
+    utt.onerror=()=>setSpeaking(false)
+    setSpeaking(true)
+    window.speechSynthesis.speak(utt)
+  }
+
+  return(
+    <button onClick={handleSpeak} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:speaking?C.red+'22':C.surface,color:speaking?C.red:C.muted,border:`1px solid ${speaking?C.red:C.border}`,borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,letterSpacing:'0.08em',width:'100%',marginBottom:12,cursor:'pointer',transition:'all 0.2s'}}>
+      {speaking?'⏹ DETENER AUDIO':'🔊 ESCUCHAR REPORTE'}
+    </button>
   )
 }
 
@@ -295,47 +340,7 @@ export default function ParteDetalle(){
         )}
 
         {/* Escuchar reporte */}
-        {(()=>{
-          const buildTexto=()=>{
-            const lineas=[]
-            lineas.push(`Parte diario de obra.`)
-            lineas.push(`Obra: ${obra?.title||''}.`)
-            lineas.push(`Planta: ${obra?.plants?.name||''}.`)
-            lineas.push(`Fecha: ${parte.date}.`)
-            lineas.push(`Avance: ${parte.progress_pct} por ciento.`)
-            lineas.push(`Operarios: ${parte.workers_count}.`)
-            lineas.push(`Horas trabajadas: ${parte.hours_worked}.`)
-            if(parte.hora_inicio) lineas.push(`Hora inicio: ${parte.hora_inicio}.`)
-            if(parte.hora_fin) lineas.push(`Hora fin: ${parte.hora_fin}.`)
-            if(parte.weather) lineas.push(`Clima: ${parte.weather}.`)
-            if(parte.responsable) lineas.push(`Responsable: ${parte.responsable}.`)
-            if(parte.work_types?.length>0) lineas.push(`Trabajos realizados: ${parte.work_types.join(', ')}.`)
-            if(parte.observaciones) lineas.push(`Observaciones: ${parte.observaciones}.`)
-            else if(parte.notes) lineas.push(`Observaciones: ${parte.notes}.`)
-            return lineas.join(' ')
-          }
-          const [speaking,setSpeaking]=React.useState(false)
-          const handleSpeak=()=>{
-            if(!window.speechSynthesis) return
-            if(speaking){
-              window.speechSynthesis.cancel()
-              setSpeaking(false)
-              return
-            }
-            const utt=new SpeechSynthesisUtterance(buildTexto())
-            utt.lang='es-AR'
-            utt.rate=0.95
-            utt.onend=()=>setSpeaking(false)
-            utt.onerror=()=>setSpeaking(false)
-            setSpeaking(true)
-            window.speechSynthesis.speak(utt)
-          }
-          return(
-            <button onClick={handleSpeak} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:speaking?C.red+'22':C.surface,color:speaking?C.red:C.muted,border:`1px solid ${speaking?C.red:C.border}`,borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,letterSpacing:'0.08em',width:'100%',marginBottom:12,cursor:'pointer',transition:'all 0.2s'}}>
-              {speaking?'⏹ DETENER AUDIO':'🔊 ESCUCHAR REPORTE'}
-            </button>
-          )
-        })()}
+        <EscucharReporte parte={parte} obra={obra}/>
 
         <button onClick={handleShare} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:'#25D366',color:'#fff',borderRadius:10,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:12,fontWeight:700,letterSpacing:'0.08em',border:'none',width:'100%',marginBottom:12,cursor:'pointer'}}>
           COMPARTIR POR WHATSAPP
