@@ -24,7 +24,11 @@ function MapaSectores({ plant, sectors, bgImage }){
   const cols = plant.grid_cols || 0
   if(!rows || !cols) return null
   const getSector = (r,c) => sectors.find(s => s.row_index===r && s.col_index===c)
-  const cellSize = Math.min(32, Math.floor(340 / (cols + 1)))
+  // Usa el ancho completo disponible (~448px - padding) dividido entre columnas + label
+  const LABEL_COL = 20
+  const GAP = 2
+  const availableWidth = 448 - 28 - LABEL_COL - (cols * GAP)
+  const cellSize = Math.min(52, Math.max(24, Math.floor(availableWidth / cols)))
   const rciValues = sectors.map(s => s.rci ?? 100)
   const rciPromedio = rciValues.length > 0 ? Math.round(rciValues.reduce((a,b)=>a+b,0)/rciValues.length) : 100
   const promedioColor = rciColorPdf(rciPromedio)
@@ -42,20 +46,22 @@ function MapaSectores({ plant, sectors, bgImage }){
           <div style={{marginTop:2}}>{plant.cell_size_m || '—'}m por celda</div>
         </div>
       </div>
-      <div style={{overflowX:'auto'}}>
-        <div style={{display:'inline-block',minWidth:(cols+1)*cellSize+8,position:'relative'}}>
+      <div style={{width:'100%',overflowX:'auto'}}>
+        <div style={{width:'100%',position:'relative'}}>
           {bgImage&&(
-            <img src={bgImage} alt="" style={{position:'absolute',top:20,left:cellSize+2,right:0,bottom:2,width:`calc(100% - ${cellSize+2}px)`,height:`calc(100% - 22px)`,objectFit:'cover',opacity:0.5,pointerEvents:'none',borderRadius:2}}/>
+            <img src={bgImage} alt="" style={{position:'absolute',top:LABEL_COL+GAP,left:LABEL_COL+GAP,right:0,bottom:0,width:`calc(100% - ${LABEL_COL+GAP}px)`,height:`calc(100% - ${LABEL_COL+GAP}px)`,objectFit:'cover',opacity:0.45,pointerEvents:'none',borderRadius:2}}/>
           )}
-          <div style={{display:'grid',gridTemplateColumns:`${cellSize}px repeat(${cols},${cellSize}px)`,gap:2,marginBottom:2}}>
+          {/* Header columnas */}
+          <div style={{display:'grid',gridTemplateColumns:`${LABEL_COL}px repeat(${cols},1fr)`,gap:GAP,marginBottom:GAP}}>
             <div/>
             {Array.from({length:cols},(_,i)=>(
-              <div key={i} style={{textAlign:'center',fontFamily:'IBM Plex Mono',fontSize:7,color:C.muted}}>{i+1}</div>
+              <div key={i} style={{textAlign:'center',fontFamily:'IBM Plex Mono',fontSize:8,color:C.muted,lineHeight:`${LABEL_COL}px`}}>{i+1}</div>
             ))}
           </div>
+          {/* Filas */}
           {Array.from({length:rows},(_,ri)=>(
-            <div key={ri} style={{display:'grid',gridTemplateColumns:`${cellSize}px repeat(${cols},${cellSize}px)`,gap:2,marginBottom:2}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'IBM Plex Mono',fontSize:7,color:C.muted}}>
+            <div key={ri} style={{display:'grid',gridTemplateColumns:`${LABEL_COL}px repeat(${cols},1fr)`,gap:GAP,marginBottom:GAP}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'IBM Plex Mono',fontSize:8,color:C.muted,height:cellSize}}>
                 {String.fromCharCode(65+ri)}
               </div>
               {Array.from({length:cols},(_,ci)=>{
@@ -63,8 +69,8 @@ function MapaSectores({ plant, sectors, bgImage }){
                 const rci = s?.rci ?? 100
                 const {bg,border,text} = rciColorPdf(rci)
                 return(
-                  <div key={ci} style={{width:cellSize,height:cellSize,background:bg,border:`1px solid ${border}`,borderRadius:2,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                    <span style={{fontFamily:'IBM Plex Mono',fontSize:cellSize>24?8:7,fontWeight:700,color:text}}>{rci}</span>
+                  <div key={ci} style={{height:cellSize,background:bg,border:`1px solid ${border}`,borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <span style={{fontFamily:'IBM Plex Mono',fontSize:cellSize>36?10:8,fontWeight:700,color:text}}>{rci}</span>
                   </div>
                 )
               })}
@@ -72,7 +78,7 @@ function MapaSectores({ plant, sectors, bgImage }){
           ))}
         </div>
       </div>
-      <div style={{display:'flex',gap:10,marginTop:10,flexWrap:'wrap'}}>
+      <div style={{display:'flex',gap:10,marginTop:12,flexWrap:'wrap'}}>
         {[['EXC','#16a34a'],['REG','#ca8a04'],['POBRE','#ea580c'],['CRÍT','#dc2626']].map(([l,c])=>(
           <div key={l} style={{display:'flex',alignItems:'center',gap:4}}>
             <div style={{width:10,height:10,background:c+'22',border:`1.5px solid ${c}`,borderRadius:2}}/>
