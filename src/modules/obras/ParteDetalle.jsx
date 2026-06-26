@@ -61,7 +61,7 @@ function MapaSectores({ plant, sectors, bgImage }){
           {/* Filas */}
           {Array.from({length:rows},(_,ri)=>(
             <div key={ri} style={{display:'grid',gridTemplateColumns:`${LABEL_COL}px repeat(${cols},1fr)`,gap:GAP,marginBottom:GAP}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'IBM Plex Mono',fontSize:8,color:C.muted,height:cellSize}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'IBM Plex Mono',fontSize:8,color:C.muted,aspectRatio:'1'}}>
                 {String.fromCharCode(65+ri)}
               </div>
               {Array.from({length:cols},(_,ci)=>{
@@ -69,7 +69,7 @@ function MapaSectores({ plant, sectors, bgImage }){
                 const rci = s?.rci ?? 100
                 const {bg,border,text} = rciColorPdf(rci)
                 return(
-                  <div key={ci} style={{height:cellSize,background:bg,border:`1px solid ${border}`,borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <div key={ci} style={{aspectRatio:'1',background:bg,border:`1px solid ${border}`,borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center'}}>
                     <span style={{fontFamily:'IBM Plex Mono',fontSize:cellSize>36?10:8,fontWeight:700,color:text}}>{rci}</span>
                   </div>
                 )
