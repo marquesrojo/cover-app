@@ -454,7 +454,7 @@ function NuevoParteForm({obraId,fotosUrl,responsableDefault,onCreated,onCancel})
           <span style={{fontSize:11,color:C.blue}}>ℹ Grabá clips cortos: máximo {MAX_VIDEO_SECONDS} segundos cada uno.</span>
         </div>
         {videoError&&<AlertBanner color={C.orange} icon="⚠">{videoError}</AlertBanner>}
-        <input ref={videoInputRef} type="file" accept="video/*" capture="environment" style={{display:'none'}} onChange={handleVideoSelect}/>
+        <input ref={videoInputRef} type="file" accept="video/*" style={{display:'none'}} onChange={handleVideoSelect}/>
         <button onClick={()=>videoInputRef.current?.click()} disabled={videos.length>=MAX_VIDEOS||checkingVideo}
           style={{width:'100%',background:videos.length>=MAX_VIDEOS?C.surface2:C.amber+'22',border:`1.5px dashed ${videos.length>=MAX_VIDEOS?C.border:C.amber}`,borderRadius:8,padding:'14px',fontFamily:'IBM Plex Mono',fontSize:11,fontWeight:700,color:videos.length>=MAX_VIDEOS?C.muted:C.amber,cursor:videos.length>=MAX_VIDEOS?'not-allowed':'pointer',marginBottom:10}}>
           {checkingVideo?'VERIFICANDO DURACIÓN...':videos.length>=MAX_VIDEOS?`LÍMITE ALCANZADO (${MAX_VIDEOS} videos)`:'🎥 GRABAR VIDEO'}
