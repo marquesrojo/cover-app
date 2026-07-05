@@ -856,6 +856,29 @@ function ObraDetail({obraId,onBack}){
           const parteFotos=fotos.filter(f=>f.parte_id===p.id)
           const parteVideos=videos.filter(v=>v.parte_id===p.id)
           const fotosCount=parteFotos.length
+          const diasDesdeCreacion=Math.floor((new Date()-new Date(p.date))/(1000*60*60*24))
+          const esCreador=p.created_by===user?.id
+          const esAdmin=profile?.role==='cover_admin'
+          const puedeVer=esCreador||esAdmin
+          const puedeEliminar=esAdmin||(esCreador&&diasDesdeCreacion<=5)
+
+          const deleteParte=async()=>{
+            if(esCreador&&!esAdmin&&diasDesdeCreacion>5){
+              alert(`Este parte tiene ${diasDesdeCreacion} días. Solo el administrador puede eliminar partes con más de 5 días.`)
+              return
+            }
+            if(!window.confirm(`¿Eliminar el parte del ${p.date}?\n\nSe borrarán todas las fotos y videos asociados. Esta acción no se puede deshacer.`)) return
+            for(const f of parteFotos){
+              await supabase.storage.from('obra-fotos').remove([f.storage_path])
+            }
+            await supabase.from('obra_fotos').delete().eq('parte_id',p.id)
+            for(const v of parteVideos){
+              await supabase.storage.from('obra-videos').remove([v.storage_path])
+            }
+            await supabase.from('obra_videos').delete().eq('parte_id',p.id)
+            await supabase.from('obra_partes').delete().eq('id',p.id)
+            loadData()
+          }
           const handleShare=async()=>{
             if(navigator.share){try{await navigator.share({title:'Parte Diario',text:shareText,url:parteUrl})}catch(e){}}
             else{window.open(whatsappUrl,'_blank')}
@@ -870,10 +893,18 @@ function ObraDetail({obraId,onBack}){
                 </div>
               </div>
               {(p.created_by===user?.id||profile?.role==='cover_admin')&&(
-                <button onClick={e=>{e.stopPropagation();setEditandoParte(p)}}
-                  style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 10px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer',marginBottom:6}}>
-                  EDITAR
-                </button>
+                <div style={{display:'flex',gap:6,marginBottom:6}}>
+                  <button onClick={e=>{e.stopPropagation();setEditandoParte(p)}}
+                    style={{background:'none',border:`1px solid ${C.border}`,borderRadius:6,padding:'4px 10px',color:C.amber,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>
+                    EDITAR
+                  </button>
+                  {puedeVer&&(
+                    <button onClick={e=>{e.stopPropagation();deleteParte()}}
+                      style={{background:'none',border:`1px solid ${C.red}44`,borderRadius:6,padding:'4px 10px',color:C.red,fontFamily:'IBM Plex Mono',fontSize:9,cursor:'pointer'}}>
+                      ELIMINAR
+                    </button>
+                  )}
+                </div>
               )}
               {p.responsable&&<div className="mono" style={{fontSize:10,color:C.muted,marginBottom:6}}>Responsable: {p.responsable}</div>}
               {(p.hora_inicio||p.hora_fin)&&(
