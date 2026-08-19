@@ -59,6 +59,7 @@ export default function App() {
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <AuthScreen />} />
       <Route path="/obras/parte/:id" element={<ParteDetalle />} />
+      <Route path="/obras/legajo/:id" element={<LegajoObra />} />
       <Route element={<PrivateRoute><AppShell /></PrivateRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard"              element={<DashboardScreen />} />
@@ -68,7 +69,6 @@ export default function App() {
         <Route path="gestion/inspeccion/nueva" element={<InspeccionScreen />} />
         <Route path="gestion/inspeccion/:id"   element={<InspectionDetail />} />
         <Route path="obras"                  element={<ObrasScreen />} />
-        <Route path="obras/legajo/:id"       element={<LegajoObra />} />
         {/* Redirecciones de rutas viejas */}
         <Route path="inspeccion/lista"       element={<Navigate to="/gestion" replace />} />
         <Route path="inspeccion/nueva"       element={<Navigate to="/gestion/inspeccion/nueva" replace />} />
