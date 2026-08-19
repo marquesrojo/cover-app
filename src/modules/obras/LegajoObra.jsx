@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '@/db/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { C } from '@/styles/tokens'
 import { Spinner } from '@/components/ui'
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+)
 
 const STATUS_LABEL={planificada:'Planificada',en_curso:'En curso',pausada:'Pausada',finalizada:'Finalizada'}
 
@@ -147,7 +152,7 @@ export default function LegajoObra() {
   useEffect(() => {
     async function load() {
       const [o, p, h, f] = await Promise.all([
-        supabase.from('obras').select('*, plants(id, name, address, membrane, area_m2, grid_rows, grid_cols, cell_size_m), tickets(title), profiles!obras_created_by_fkey(full_name)').eq('id', id).single(),
+        supabase.from('obras').select('*, plants(name, address, membrane, area_m2, grid_rows, grid_cols, cell_size_m), tickets(title), profiles!obras_created_by_fkey(full_name)').eq('id', id).single(),
         supabase.from('obra_partes').select('*').eq('obra_id', id).order('date', { ascending: true }),
         supabase.from('obra_hitos').select('*').eq('obra_id', id).order('order_index'),
         supabase.from('obra_fotos').select('*').eq('obra_id', id).order('uploaded_at', { ascending: true }),
